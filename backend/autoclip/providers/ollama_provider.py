@@ -14,7 +14,7 @@ import logging
 
 import httpx
 
-from .base import DetectionConfig, LLMProvider, ProviderError, ProviderStatus
+from .base import ClipCandidates, DetectionConfig, LLMProvider, ProviderError, ProviderStatus
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +32,11 @@ RECOMMENDED_MODELS = [
 
 #: Highlight detection over an 8-minute window is slow on consumer hardware.
 _REQUEST_TIMEOUT = httpx.Timeout(600.0, connect=5.0)
+
+# Paired with the local word cap in pipeline.highlights. Explicit per-request
+# limits avoid relying on the server's default context or unbounded generation.
+_CONTEXT_LENGTH = 8192
+_MAX_GENERATED_TOKENS = 2048
 
 
 class OllamaProvider(LLMProvider):
@@ -53,15 +58,19 @@ class OllamaProvider(LLMProvider):
                 hint=f"Pull one first, e.g. `ollama pull {RECOMMENDED_MODELS[0]}`.",
             )
 
+        schema = ClipCandidates.model_json_schema()
+        schema["required"] = ["clips"]
         payload = {
             "model": self.model,
             "system": system,
             "prompt": user,
             "stream": False,
-            # Ollama's JSON mode constrains decoding to valid JSON, which is the
-            # single biggest reliability win for small local models.
-            "format": "json",
-            "options": {"temperature": config.temperature},
+            "format": schema,
+            "options": {
+                "temperature": config.temperature,
+                "num_ctx": _CONTEXT_LENGTH,
+                "num_predict": _MAX_GENERATED_TOKENS,
+            },
         }
 
         try:
@@ -87,6 +96,12 @@ class OllamaProvider(LLMProvider):
         except httpx.HTTPStatusError as exc:
             raise _translate_status(exc, self.name, self.model) from exc
 
+        if data.get("done_reason") == "length":
+            raise ProviderError(
+                "Ollama reached the response token limit before completing clip data.",
+                provider=self.name,
+                hint="Reduce the requested number of clips or use a smaller transcript window.",
+            )
         return data.get("response", "")
 
     async def health_check(self) -> ProviderStatus:

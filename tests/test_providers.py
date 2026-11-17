@@ -217,3 +217,50 @@ class TestRegistry:
         provider = OpenAIProvider("llama-3.1", base_url="https://openrouter.ai/api/v1")
 
         assert provider.base_url == "https://openrouter.ai/api/v1"
+
+
+class TestOllamaCompletion:
+    @pytest.fixture
+    def ollama_http(self, monkeypatch):
+        import httpx
+        from autoclip.providers import ollama_provider
+
+        requests = []
+        replies = []
+
+        def respond(request):
+            import json
+
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json=replies.pop(0))
+
+        client = httpx.AsyncClient
+        transport = httpx.MockTransport(respond)
+        monkeypatch.setattr(
+            ollama_provider.httpx,
+            "AsyncClient",
+            lambda **kwargs: client(transport=transport, **kwargs),
+        )
+        return requests, replies
+
+    async def test_requests_schema_and_explicit_context(self, ollama_http):
+        from autoclip.providers import OllamaProvider
+
+        requests, replies = ollama_http
+        replies.append({"response": VALID, "done_reason": "stop"})
+        result = await OllamaProvider("llama3.1:8b")._complete("system", "user", DetectionConfig())
+        assert result == VALID
+        payload = requests[0]
+        assert payload["model"] == "llama3.1:8b"
+        assert payload["options"]["num_ctx"] == 8192
+        assert payload["options"]["num_predict"] == 2048
+        assert payload["format"]["required"] == ["clips"]
+        assert payload["format"]["properties"]["clips"]["type"] == "array"
+
+    async def test_truncated_generation_raises_actionable_error(self, ollama_http):
+        from autoclip.providers import OllamaProvider
+
+        _, replies = ollama_http
+        replies.append({"response": '{"clips":[', "done_reason": "length"})
+        with pytest.raises(ProviderError, match="response token limit"):
+            await OllamaProvider("llama3.1:8b")._complete("system", "user", DetectionConfig())

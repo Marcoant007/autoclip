@@ -112,7 +112,7 @@ Clip quality tracks model quality closely. A 7B model returns valid JSON full of
 uv pip install -e ".[gpu]"
 ```
 
-CUDA runtime libraries for NVIDIA GPUs. Install these if `doctor` reports that CTranslate2 can't see your GPU — pip puts them somewhere the OS loader doesn't search, and AutoClip registers the location itself. On macOS this deliberately installs nothing: there's no CUDA there, and Apple Silicon takes the CPU path.
+CUDA runtime libraries for NVIDIA GPUs. Install these if CTranslate2 can't see your GPU or transcription reports a missing cuBLAS/cuDNN library, even when `doctor` sees CUDA. Device discovery does not run inference or verify these libraries. Pip puts them somewhere the OS loader doesn't search, and AutoClip registers the location for the lifetime of the process. On macOS this deliberately installs nothing: there's no CUDA there, and Apple Silicon takes the CPU path.
 
 ```bash
 uv pip install -e ".[diarization]"
@@ -164,9 +164,11 @@ Everything here is a real failure hit during development, not hypothetical.
 
 **`autoclip doctor` says Python is wrong.** You're on 3.13. MediaPipe has no wheels for it. `uv venv --python 3.11`.
 
-**Transcription fails with "Library cublas64_12.dll is not found".** The CUDA runtime libraries aren't installed. `uv pip install -e ".[gpu]"`. AutoClip registers their location itself — pip installs them somewhere the OS loader doesn't search, which is why the error is so unhelpful.
+**Transcription fails with "Library cublas64_12.dll is not found".** Install the project's CUDA 12 cuBLAS and cuDNN 9 dependencies with `uv pip install -e ".[gpu]"`. On Windows with a standard venv, use `.\.venv\Scripts\python.exe -m pip install -e ".[gpu]"`. Restart AutoClip after installing, then retry the failed job to validate real transcription; `doctor` seeing CUDA is not sufficient. AutoClip registers the installed DLL directories inside its own process, without changing the global PATH or requiring DLL copies.
 
 **"Requested int8_float16 compute type, but the target device does not support..."** Clear `whisper.compute_type` in `~/.autoclip/config.json` and let AutoClip choose. It queries the backend for what's actually supported rather than guessing from your GPU model.
+
+**Ollama finds no clips, and its log says "truncating input prompt".** The transcript and instructions exceed the model's active context. AutoClip limits local windows to 400 indexed words and requests an 8192-token context with structured clip output. Restart AutoClip after updating so the worker loads these settings, then retry the job; its completed transcription is reused. Provider failures are reported separately from a valid empty clip list.
 
 **Captions don't appear in exports, or ffmpeg says "No such filter: ass".** Your ffmpeg has no libass. `doctor` reports this and prints the right command for your platform. On macOS that means `brew install ffmpeg-full`, not `brew install ffmpeg`; on Windows the full Gyan build, not "essentials".
 

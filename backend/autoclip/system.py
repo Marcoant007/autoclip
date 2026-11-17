@@ -110,9 +110,8 @@ class GPUInfo:
     vram_mb: int | None = None
     compute_capability: float | None = None
     driver_version: str | None = None
-    #: True when CTranslate2 reports a usable CUDA device — the check that
-    #: actually predicts whether faster-whisper will run on GPU. nvidia-smi
-    #: seeing a card is not sufficient (missing cuDNN is the usual culprit).
+    #: True when CTranslate2 sees a CUDA device. This does not run inference
+    #: or verify that the dynamically loaded cuBLAS/cuDNN libraries are usable.
     ctranslate2_cuda: bool = False
 
     #: Compute types CTranslate2 reports for this device. Populated by the
@@ -283,10 +282,9 @@ def probe_gpu() -> GPUInfo:
                 with contextlib.suppress(ValueError):
                     info.compute_capability = float(fields[3])
 
-    # nvidia-smi seeing a card doesn't mean CTranslate2 can use it — the CUDA
-    # runtime and cuDNN also have to be loadable. This is the check that counts.
-    # Registering the pip-installed library directories first is what makes them
-    # findable; without it the probe passes and inference later fails.
+    # Device discovery alone does not exercise cuBLAS/cuDNN: inference may still
+    # fail if those libraries are absent. Register installed libraries before
+    # importing CTranslate2 so later inference can find them too.
     from .cuda import ensure_cuda_libraries
 
     ensure_cuda_libraries()

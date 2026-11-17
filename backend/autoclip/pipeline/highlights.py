@@ -35,6 +35,10 @@ DEDUPE_IOU = 0.4
 HOSTED_CONCURRENCY = 3
 LOCAL_CONCURRENCY = 1
 
+# Indexed words take several tokens each. Eight minutes of speech can overflow
+# Ollama's context and silently discard the instructions and transcript.
+LOCAL_MAX_WORDS = 400
+
 
 class HighlightError(RuntimeError):
     """Highlight detection produced nothing usable."""
@@ -45,6 +49,7 @@ def build_windows(
     *,
     window_s: float = WINDOW_S,
     overlap_s: float = OVERLAP_S,
+    max_words: int | None = None,
 ) -> list[TranscriptWindow]:
     """Split a transcript into overlapping windows.
 
@@ -55,6 +60,8 @@ def build_windows(
         return []
     if overlap_s >= window_s:
         raise ValueError("overlap_s must be smaller than window_s")
+    if max_words is not None and max_words < 2:
+        raise ValueError("max_words must be at least 2")
 
     windows: list[TranscriptWindow] = []
     total_words = len(transcript.words)
@@ -65,7 +72,11 @@ def build_windows(
         window_end_time = window_start_time + window_s
 
         last = cursor
-        while last + 1 < total_words and transcript.words[last + 1].end <= window_end_time:
+        while (
+            last + 1 < total_words
+            and transcript.words[last + 1].end <= window_end_time
+            and (max_words is None or last - cursor + 1 < max_words)
+        ):
             last += 1
 
         windows.append(_make_window(transcript, cursor, last))
@@ -75,9 +86,14 @@ def build_windows(
 
         # Step forward by (window - overlap), measured in time then converted
         # back to a word index so overlap stays constant regardless of pace.
-        next_time = transcript.words[last].end - overlap_s
+        overlap = overlap_s
+        if max_words is not None:
+            # A word cap may shorten a window below the requested overlap.
+            # Keep advancing even for unusually fast speech or equal timestamps.
+            overlap = min(overlap, (transcript.words[last].end - window_start_time) / 2)
+        next_time = transcript.words[last].end - overlap
         next_cursor = transcript.index_at_time(next_time)
-        cursor = max(cursor + 1, next_cursor)
+        cursor = max(cursor + 1, min(last + 1, next_cursor))
 
     return windows
 
@@ -129,7 +145,9 @@ async def detect(
     on_progress: Callable[[float], None] | None = None,
 ) -> list[Clip]:
     """Run detection across the whole transcript and return ranked clips."""
-    windows = build_windows(transcript)
+    windows = build_windows(
+        transcript, max_words=LOCAL_MAX_WORDS if provider.name == "ollama" else None
+    )
     if not windows:
         raise HighlightError("The transcript is empty, so there is nothing to clip.")
 
@@ -138,6 +156,7 @@ async def detect(
     concurrency = LOCAL_CONCURRENCY if provider.name == "ollama" else HOSTED_CONCURRENCY
     semaphore = asyncio.Semaphore(concurrency)
     completed = 0
+    failures: list[str] = []
     lock = asyncio.Lock()
 
     async def run_window(window: TranscriptWindow) -> list[ClipCandidate]:
@@ -154,7 +173,16 @@ async def detect(
                     window.last_word,
                     exc,
                 )
+                failures.append(str(exc))
                 candidates = []
+            log.info(
+                "Window %d-%d returned %d candidate(s) (%d/%d windows completed).",
+                window.first_word,
+                window.last_word,
+                len(candidates),
+                completed + 1,
+                len(windows),
+            )
             async with lock:
                 completed += 1
                 if on_progress:
@@ -165,6 +193,11 @@ async def detect(
     candidates = [c for group in results for c in group]
 
     if not candidates:
+        if failures:
+            raise HighlightError(
+                f"Highlight detection failed in {len(failures)} of {len(windows)} "
+                f"windows with {provider.name}. First error: {failures[0]}"
+            )
         raise HighlightError(
             "No clips were found. This can mean the video genuinely has no "
             "self-contained highlights, or that the model struggled with the "

@@ -98,8 +98,8 @@ def transcribe(
     """
     settings = settings or WhisperSettings()
 
-    # Must happen before faster-whisper pulls in CTranslate2, which resolves its
-    # CUDA dependencies at import.
+    # Register before importing CTranslate2 and keep directories available for
+    # CUDA dependencies loaded lazily during inference.
     from ..cuda import ensure_cuda_libraries
 
     ensure_cuda_libraries()
