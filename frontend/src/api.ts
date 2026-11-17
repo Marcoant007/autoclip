@@ -23,6 +23,14 @@ export interface Source {
 
 export type JobStatus = 'queued' | 'running' | 'failed' | 'done' | 'cancelled'
 
+export interface JobLog {
+  id: string
+  timestamp: string
+  level: string
+  logger: string
+  message: string
+}
+
 export interface Job {
   id: string
   source_id: string
@@ -243,6 +251,7 @@ export const api = {
 
   listJobs: (limit = 25) => request<Job[]>(`/api/jobs?limit=${limit}`),
   getJob: (id: string) => request<Job>(`/api/jobs/${id}`),
+  getJobLogs: (id: string) => request<JobLog[]>(`/api/jobs/${id}/logs`),
 
   createJob: (sourceId: string, settings: JobSettingsOverrides = {}) =>
     request<Job>('/api/jobs', {

@@ -75,7 +75,7 @@ export function CaptionEditor({
                   }
                 }
               }}
-              className="mr-1 w-[8ch] border-b border-sodium-500 bg-transparent px-0.5 text-ink-100 outline-none"
+              className="mr-1 w-[8ch] border-b border-accent-500 bg-transparent px-0.5 text-ink-100 outline-none"
               style={{ width: `${Math.max(4, draft.length + 1)}ch` }}
             />
           ) : (
@@ -86,7 +86,7 @@ export function CaptionEditor({
                 setEditing(index)
               }}
               title={formatTimecode(word.start)}
-              className="mr-1 rounded-[2px] px-0.5 text-ink-200 transition-colors duration-150 hover:bg-sodium-700/25 hover:text-ink-100"
+              className="mr-1 rounded-[2px] px-0.5 text-ink-200 transition-colors duration-150 hover:bg-accent-700/25 hover:text-ink-100"
             >
               {word.text}
             </button>

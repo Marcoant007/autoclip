@@ -147,6 +147,17 @@ Everything the UI does is also on the CLI:
 | `autoclip config show` | print settings |
 | `autoclip update-ytdlp` | update yt-dlp after a YouTube change |
 
+### Processing logs
+
+The job page shows live logs beside the pipeline stages, with timestamps, severity filters,
+search, auto-scroll, and copy/download controls. History survives page refreshes and retries;
+the panel shows the latest 1,000 entries. Logs are stored with the job in
+`work/<job_id>/logs.jsonl`. Jobs completed before this feature was installed have no log history.
+
+Completed jobs stay on the progress page so their logs remain readable. Choose **Review clips**
+to continue, or use **Logs do processamento** on the review page to return to the history.
+Restart the AutoClip server after updating to enable the log endpoint and capture new runs.
+
 ### Caption styles
 
 | style | look |

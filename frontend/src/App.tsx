@@ -22,7 +22,7 @@ export function App() {
         <div className="mx-auto flex max-w-[1600px] items-baseline gap-8 px-6 py-4 lg:px-10">
           <NavLink to="/" className="group flex items-baseline gap-2.5">
             <span className="font-display text-2xl leading-none text-ink-100">
-              Auto<span className="italic text-sodium-500">Clip</span>
+              Auto<span className="italic text-accent-500">Clip</span>
             </span>
           </NavLink>
 
@@ -62,7 +62,7 @@ function TopLink({
       className={({ isActive }) =>
         [
           'text-sm font-medium transition-colors duration-200',
-          isActive ? 'text-sodium-500' : 'text-ink-400 hover:text-ink-200',
+          isActive ? 'text-accent-500' : 'text-ink-400 hover:text-ink-200',
         ].join(' ')
       }
     >
@@ -82,7 +82,7 @@ function SystemBadge({ system }: { system: SystemStatus }) {
   const accel = system.accel.toUpperCase()
   return (
     <div className="hidden items-baseline gap-4 text-xs md:flex">
-      <span className="numeric text-ink-400">
+      <span className="numeric rounded border border-accent-700/70 bg-accent-700/10 px-2 py-1 text-accent-400">
         {accel}
         {system.gpu_name && accel === 'CUDA' && (
           <span className="text-ink-600"> · {system.gpu_name.replace('NVIDIA GeForce ', '')}</span>

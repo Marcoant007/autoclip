@@ -153,7 +153,7 @@ export function Review() {
     <div className="pt-10">
       <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-ink-800 pb-5">
         <div className="min-w-0">
-          <Link to="/" className="eyebrow transition-colors hover:text-sodium-500">
+          <Link to="/" className="eyebrow transition-colors hover:text-accent-500">
             ← All jobs
           </Link>
           <h1 className="mt-2 max-w-2xl truncate font-display text-[clamp(1.5rem,3vw,2.25rem)] leading-tight text-ink-100">
@@ -161,7 +161,8 @@ export function Review() {
           </h1>
         </div>
 
-        <div className="flex items-baseline gap-6">
+        <div className="flex flex-wrap items-baseline gap-6">
+          <Link to={`/jobs/${job.id}`} className="btn btn-ghost">Logs do processamento</Link>
           <span className="numeric text-xs text-ink-500">
             {clips.length} clips · {keptCount} kept
           </span>
@@ -266,7 +267,7 @@ export function Review() {
                         className={[
                           'block w-full border-l-2 py-2 pl-3 text-left transition-colors duration-200',
                           style.key === selected.caption_style
-                            ? 'border-sodium-500 bg-ink-850/60'
+                            ? 'border-accent-500 bg-ink-850/60'
                             : 'border-transparent hover:border-ink-700 hover:bg-ink-850/30',
                         ].join(' ')}
                       >
@@ -316,7 +317,7 @@ export function Review() {
                           <a
                             href={record.download_url}
                             download
-                            className="truncate text-sodium-500 underline underline-offset-4"
+                            className="truncate text-accent-500 underline underline-offset-4"
                           >
                             {record.ratio} · {record.style}
                           </a>
@@ -371,7 +372,7 @@ function ClipRow({
       <span
         className={[
           'numeric self-start font-display text-2xl leading-none',
-          clip.score >= 85 ? 'text-sodium-500' : selected ? 'text-ink-200' : 'text-ink-500',
+          clip.score >= 85 ? 'text-accent-500' : selected ? 'text-ink-200' : 'text-ink-500',
         ].join(' ')}
       >
         {clip.score}

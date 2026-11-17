@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { api, formatDuration } from '../api'
 import { ErrorNote } from '../components/ErrorNote'
+import { JobLogs } from '../components/JobLogs'
 import { useJobStream } from '../useJobStream'
 
 /** Stage order and labels, mirroring autoclip.pipeline.Stage. */
@@ -18,24 +19,17 @@ const STAGES = [
 export function JobProgress() {
   const { jobId } = useParams()
   const navigate = useNavigate()
-  const { job, progress } = useJobStream(jobId)
+  const { job, progress, connected, logs, logError, error } = useJobStream(jobId)
   const [cancelling, setCancelling] = useState(false)
   const [actionError, setActionError] = useState<Error | null>(null)
 
-  useEffect(() => {
-    if (job?.status === 'done') {
-      // A short hold so the completed state is legible rather than a flash.
-      const timer = setTimeout(() => navigate(`/jobs/${job.id}/clips`), 900)
-      return () => clearTimeout(timer)
-    }
-  }, [job?.status, job?.id, navigate])
-
   if (!job) {
-    return <p className="pt-24 text-sm text-ink-500">Loading…</p>
+    return error ? <div className="pt-14"><ErrorNote error={error} /></div>
+      : <p className="pt-24 text-sm text-ink-500">Loading…</p>
   }
 
   const activeIndex = STAGES.findIndex((s) => s.key === job.current_stage)
-  const percent = Math.round((progress?.overall ?? job.progress) * 100)
+  const percent = Math.round(job.progress * 100)
 
   const cancel = async () => {
     setCancelling(true)
@@ -77,7 +71,7 @@ export function JobProgress() {
         </div>
 
         <div className="flex items-baseline gap-8">
-          <span className="numeric font-display text-[clamp(2.5rem,6vw,4rem)] leading-none text-sodium-500">
+          <span className="numeric font-display text-[clamp(2.5rem,6vw,4rem)] leading-none text-accent-500">
             {percent}
             <span className="text-2xl text-ink-600">%</span>
           </span>
@@ -114,7 +108,13 @@ export function JobProgress() {
         </div>
       )}
 
-      <ol className="mt-12 max-w-3xl">
+      <div className="mt-10 grid items-start gap-8 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+      <section className="min-w-0 rounded-xl border border-ink-800 bg-ink-850/30 px-5 pb-2">
+      <div className="flex items-center justify-between border-b border-ink-800 py-5">
+        <h2 className="text-sm font-semibold text-ink-100">Etapas do processamento</h2>
+        <span className="numeric text-xs text-accent-400">{STAGES.filter((_, index) => job.status === 'done' || index < activeIndex).length} / {STAGES.length}</span>
+      </div>
+      <ol>
         {STAGES.map((stage, index) => {
           // A failed job stopped *at* current_stage, so that stage must read as
           // failed rather than as still running — otherwise the checklist claims
@@ -132,7 +132,7 @@ export function JobProgress() {
                   : 'pending'
 
           const fraction =
-            state === 'done' ? 1 : state === 'active' ? (progress?.stageProgress ?? 0) : 0
+            state === 'done' ? 1 : state === 'active' && progress?.stage === stage.key ? progress.stageProgress : 0
 
           return (
             <li
@@ -148,7 +148,7 @@ export function JobProgress() {
                     : state === 'stopped'
                       ? 'text-signal-bad'
                       : state === 'active'
-                        ? 'text-sodium-500'
+                        ? 'text-accent-500'
                         : 'text-ink-600',
                 ].join(' ')}
               >
@@ -182,7 +182,7 @@ export function JobProgress() {
                     row already provides the container. */}
                 <div className="mt-3 h-px w-full bg-ink-800">
                   <div
-                    className="h-px origin-left bg-sodium-500 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                    className="h-px origin-left bg-accent-500 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
                     style={{ transform: `scaleX(${fraction})` }}
                   />
                 </div>
@@ -191,6 +191,10 @@ export function JobProgress() {
           )
         })}
       </ol>
+      </section>
+      <JobLogs entries={logs} connected={connected}
+        active={job.status === 'running' || job.status === 'queued'} error={logError} />
+      </div>
     </div>
   )
 }

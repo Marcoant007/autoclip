@@ -184,7 +184,7 @@ export function ClipPlayer({
 
         <div className="h-px flex-1 bg-ink-800">
           <div
-            className="h-px origin-left bg-sodium-500"
+            className="h-px origin-left bg-accent-500"
             style={{ transform: `scaleX(${elapsed / duration})` }}
           />
         </div>
@@ -194,7 +194,7 @@ export function ClipPlayer({
       </div>
 
       {(muted || volume === 0) && (
-        <p className="mt-2 text-xs text-sodium-500">
+        <p className="mt-2 text-xs text-accent-500">
           Audio is muted — click the speaker to unmute.
         </p>
       )}
@@ -214,7 +214,7 @@ export function ClipPlayer({
       {audioCheck && (
         <p
           className={`mt-1 max-w-prose text-xs leading-relaxed ${
-            audioCheck.ok ? 'text-ink-400' : 'text-sodium-500'
+            audioCheck.ok ? 'text-ink-400' : 'text-accent-500'
           }`}
         >
           {audioCheck.detail}
@@ -390,7 +390,7 @@ function VolumeControl({
     <div className="flex items-center gap-2">
       <button
         onClick={onToggleMute}
-        className={`btn btn-quiet px-1 ${silent ? 'text-sodium-500' : ''}`}
+        className={`btn btn-quiet px-1 ${silent ? 'text-accent-500' : ''}`}
         aria-label={silent ? 'Unmute' : 'Mute'}
         title={silent ? 'Unmute' : 'Mute'}
       >
@@ -404,7 +404,7 @@ function VolumeControl({
         value={silent ? 0 : volume}
         onChange={(e) => onVolume(Number(e.target.value))}
         aria-label="Volume"
-        className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-ink-700 accent-sodium-500"
+        className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-ink-700 accent-accent-500"
       />
     </div>
   )

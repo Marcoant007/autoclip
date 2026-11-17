@@ -252,6 +252,35 @@ class TestJobs:
         assert client.post("/api/jobs/nope/retry").status_code == 404
 
 
+class TestJobLogs:
+    def test_old_jobs_have_empty_log_history(self, client: TestClient, source: Source) -> None:
+        job = store.create_job(Job(id=new_id(), source_id=source.id, status="done"))
+        assert client.get(f"/api/jobs/{job.id}/logs").json() == []
+
+    def test_returns_only_requested_job_logs(self, client: TestClient, source: Source) -> None:
+        import logging
+
+        from autoclip.jobs.logs import capture_job_logs
+
+        first = store.create_job(Job(id=new_id(), source_id=source.id, status="done"))
+        second = store.create_job(Job(id=new_id(), source_id=source.id, status="done"))
+        with capture_job_logs(first.id):
+            logging.getLogger("autoclip.pipeline.runner").warning("First job warning")
+        with capture_job_logs(second.id):
+            logging.getLogger("autoclip.pipeline.runner").info("Second job message")
+        response = client.get(f"/api/jobs/{first.id}/logs")
+        assert response.status_code == 200
+        entries = response.json()
+        assert any(entry["message"] == "First job warning" for entry in entries)
+        assert not any(entry["message"] == "Second job message" for entry in entries)
+        assert all(
+            {"id", "timestamp", "level", "logger", "message"} <= entry.keys() for entry in entries
+        )
+
+    def test_unknown_job_is_404(self, client: TestClient) -> None:
+        assert client.get("/api/jobs/nope/logs").status_code == 404
+
+
 class TestClips:
     @pytest.fixture
     def job_with_clips(self, source: Source) -> Job:

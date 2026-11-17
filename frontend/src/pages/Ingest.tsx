@@ -64,7 +64,7 @@ export function Ingest() {
         <h1 className="mt-5 font-display text-[clamp(2.75rem,7vw,5.5rem)] leading-[0.95] text-ink-100">
           Long video in.
           <br />
-          <span className="italic text-sodium-500">Shorts</span> out.
+          <span className="italic text-accent-500">Shorts</span> out.
         </h1>
       </div>
 
@@ -127,7 +127,7 @@ export function Ingest() {
             className={[
               'mt-3 flex min-h-52 cursor-pointer flex-col items-center justify-center gap-2 border border-dashed px-6 text-center transition-colors duration-200',
               dragging
-                ? 'border-sodium-500 bg-sodium-700/10'
+                ? 'border-accent-500 bg-accent-700/10'
                 : 'border-ink-700 hover:border-ink-600',
             ].join(' ')}
             onClick={() => fileInput.current?.click()}
@@ -163,10 +163,10 @@ export function Ingest() {
       )}
 
       {providers.length > 0 && !usableProvider && (
-        <p className="mt-10 max-w-3xl border-l-2 border-sodium-600 pl-4 text-sm text-ink-300">
+        <p className="mt-10 max-w-3xl border-l-2 border-accent-600 pl-4 text-sm text-ink-300">
           No AI provider is reachable yet, so clip selection will fail. Add an API key or
           start Ollama in{' '}
-          <a href="/settings" className="text-sodium-500 underline underline-offset-4">
+          <a href="/settings" className="text-accent-500 underline underline-offset-4">
             Settings
           </a>
           .
@@ -272,7 +272,7 @@ function AdvancedOptions({
                 type="checkbox"
                 checked={overrides.diarization ?? false}
                 onChange={(e) => set('diarization', e.target.checked || undefined)}
-                className="size-4 accent-sodium-500"
+                className="size-4 accent-accent-500"
               />
               Multiple speakers — label who is talking, and cut to them
             </label>
@@ -385,7 +385,7 @@ function StatusTag({ job }: { job: Job }) {
   const tone: Record<string, string> = {
     done: 'text-signal-good',
     failed: 'text-signal-bad',
-    running: 'text-sodium-500',
+    running: 'text-accent-500',
     queued: 'text-ink-400',
     cancelled: 'text-ink-500',
   }

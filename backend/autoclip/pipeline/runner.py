@@ -24,6 +24,7 @@ from ..config import load as load_settings
 from ..db import store
 from ..db.models import Clip, Export, Job, Source, new_id, utcnow
 from ..db.models import Transcript as TranscriptRow
+from ..jobs.logs import capture_job_logs
 from ..providers import build_provider, detection_config
 from . import Stage, captions, export, ffmpeg, highlights, prepare, transcribe
 from .prepare import Silence
@@ -120,6 +121,7 @@ class PipelineRunner:
         self._is_cancelled = is_cancelled or (lambda: False)
         self.workspace = JobWorkspace(job.id)
         self._completed_weight = 0.0
+        self._logged_stage: Stage | None = None
 
     # -- progress ----------------------------------------------------------
 
@@ -138,6 +140,9 @@ class PipelineRunner:
         if overall is None:
             overall = self._completed_weight + STAGE_WEIGHTS[stage] * stage_progress
         overall = min(1.0, overall)
+        if stage != self._logged_stage:
+            log.info("%s: %s", stage.label, message or stage.label)
+            self._logged_stage = stage
         store.update_job(self.job.id, current_stage=stage.value, progress=round(overall, 4))
         if self.on_progress:
             self.on_progress(
@@ -158,6 +163,7 @@ class PipelineRunner:
         stage reported 0 — visibly, at every stage boundary.
         """
         self._completed_weight += STAGE_WEIGHTS[stage]
+        log.info("%s completed.", stage.label)
         self._emit(stage, 1.0, overall=self._completed_weight)
 
     def _stage_progress(self, stage: Stage) -> Callable[[float], None]:
@@ -170,6 +176,10 @@ class PipelineRunner:
 
     async def run(self) -> list[Clip]:
         """Run the full pipeline and return the exported clips."""
+        with capture_job_logs(self.job.id):
+            return await self._run()
+
+    async def _run(self) -> list[Clip]:
         store.update_job(self.job.id, status="running", started_at=utcnow(), error=None)
 
         try:
@@ -310,6 +320,8 @@ class PipelineRunner:
             # there is nothing to reframe.
             self._finish_stage(stage)
             return crop_paths
+
+        self._emit(stage, 0.0, "Analyzing framing")
 
         config = ReframeConfig(
             aspect_w=9 if self.settings.export.ratio == "9:16" else 1,

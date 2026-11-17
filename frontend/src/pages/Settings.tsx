@@ -59,7 +59,7 @@ export function Settings() {
       )}
 
       {settings.insecure_secret_storage && (
-        <p className="mt-6 border-l-2 border-sodium-600 pl-4 text-sm leading-relaxed text-ink-300">
+        <p className="mt-6 border-l-2 border-accent-600 pl-4 text-sm leading-relaxed text-ink-300">
           No OS keyring is available on this machine, so API keys are stored in plain text
           in <code className="text-ink-200">config.json</code>. On headless Linux, installing
           a Secret Service provider or <code className="text-ink-200">keyrings.alt</code>{' '}
@@ -76,7 +76,7 @@ export function Settings() {
               className={[
                 'block w-full border-l-2 py-3 pl-3 text-left transition-colors duration-200',
                 provider.name === settings.active_provider
-                  ? 'border-sodium-500 bg-ink-850/60'
+                  ? 'border-accent-500 bg-ink-850/60'
                   : 'border-transparent hover:border-ink-700 hover:bg-ink-850/30',
               ].join(' ')}
             >
@@ -172,7 +172,7 @@ export function Settings() {
             onChange={(e) =>
               patch({ whisper: { ...settings.whisper, diarization: e.target.checked } })
             }
-            className="mt-0.5 size-4 accent-sodium-500"
+            className="mt-0.5 size-4 accent-accent-500"
           />
           <span>
             Identify speakers
@@ -245,7 +245,7 @@ export function Settings() {
                 export: { ...settings.export, prefer_hardware_encoder: e.target.checked },
               })
             }
-            className="mt-0.5 size-4 accent-sodium-500"
+            className="mt-0.5 size-4 accent-accent-500"
           />
           <span>
             Use GPU encoding when available
@@ -263,7 +263,7 @@ export function Settings() {
             type="checkbox"
             checked={settings.export.write_srt}
             onChange={(e) => patch({ export: { ...settings.export, write_srt: e.target.checked } })}
-            className="size-4 accent-sodium-500"
+            className="size-4 accent-accent-500"
           />
           Also write an .srt sidecar
         </label>

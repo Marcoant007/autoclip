@@ -12,6 +12,7 @@ from ..config import load as load_settings
 from ..db import store
 from ..db.models import Job, new_id
 from ..jobs.events import broker
+from ..jobs.logs import read_logs
 from ..jobs.queue import queue
 from .schemas import JobCreateIn, JobOut, JobSettingsIn
 
@@ -87,6 +88,14 @@ async def get_job(job_id: str) -> JobOut:
         raise HTTPException(status_code=404, detail="Job not found.")
     source = await asyncio.to_thread(store.get_source, job.source_id)
     return JobOut.of(job, source)
+
+
+@router.get("/{job_id}/logs")
+async def job_logs(job_id: str) -> list[dict]:
+    job = await asyncio.to_thread(store.get_job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return await asyncio.to_thread(read_logs, job_id)
 
 
 @router.get("/{job_id}/events")

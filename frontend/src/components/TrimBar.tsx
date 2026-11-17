@@ -103,7 +103,7 @@ export function TrimBar({
         <span className="eyebrow">Trim</span>
         <span className="numeric text-xs text-ink-400">
           {formatTimecode(local.start)} → {formatTimecode(local.end)}
-          <span className="ml-3 text-sodium-500">{duration.toFixed(1)}s</span>
+          <span className="ml-3 text-accent-500">{duration.toFixed(1)}s</span>
         </span>
       </div>
 
@@ -121,7 +121,7 @@ export function TrimBar({
         </div>
 
         <div
-          className="absolute inset-y-0 bg-sodium-700/25"
+          className="absolute inset-y-0 bg-accent-700/25"
           style={{ left: `${left * 100}%`, right: `${(1 - right) * 100}%` }}
         />
 
@@ -151,8 +151,8 @@ function Handle({
       className="absolute inset-y-0 w-3 -translate-x-1/2 cursor-ew-resize"
       style={{ left: `${position * 100}%` }}
     >
-      <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-sodium-500" />
-      <span className="absolute left-1/2 top-1/2 h-6 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sodium-400" />
+      <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-accent-500" />
+      <span className="absolute left-1/2 top-1/2 h-6 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-400" />
     </button>
   )
 }
