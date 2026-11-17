@@ -50,7 +50,7 @@ class AnthropicProvider(LLMProvider):
         try:
             message = await client.messages.create(
                 model=self.model,
-                max_tokens=4096,
+                max_tokens=config.max_output_tokens or 4096,
                 temperature=config.temperature,
                 system=system,
                 messages=[

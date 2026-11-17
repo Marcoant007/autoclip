@@ -99,22 +99,25 @@ export function TrimBar({
 
   return (
     <div className="select-none">
-      <div className="flex items-baseline justify-between">
-        <span className="eyebrow">Trim</span>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <p className="label">Início e fim</p>
+          <p className="mt-0.5 text-xs text-ink-500">Arraste as alças — elas se encaixam no começo/fim das palavras.</p>
+        </div>
         <span className="numeric text-xs text-ink-400">
           {formatTimecode(local.start)} → {formatTimecode(local.end)}
-          <span className="ml-3 text-accent-500">{duration.toFixed(1)}s</span>
+          <span className="ml-2 rounded-md bg-accent-500/15 px-1.5 py-0.5 font-semibold text-accent-400">{duration.toFixed(1)}s</span>
         </span>
       </div>
 
-      <div ref={track} className="relative mt-3 h-14 cursor-ew-resize bg-ink-850">
+      <div ref={track} className="relative mt-3 h-14 cursor-ew-resize overflow-hidden rounded-lg bg-ink-900">
         {/* Word density as a crude waveform stand-in: taller where speech is
             dense, which is enough to aim a cut by. */}
         <div className="absolute inset-0 flex items-end gap-px overflow-hidden px-px opacity-60">
           {buildDensity(words, windowStart, windowEnd, 90).map((value, index) => (
             <div
               key={index}
-              className="flex-1 bg-ink-700"
+              className="flex-1 rounded-t-[1px] bg-ink-700"
               style={{ height: `${12 + value * 78}%` }}
             />
           ))}
@@ -147,7 +150,7 @@ function Handle({
         e.preventDefault()
         onGrab()
       }}
-      aria-label={`Drag ${edge} of clip`}
+      aria-label={edge === 'start' ? 'Arrastar início do corte' : 'Arrastar fim do corte'}
       className="absolute inset-y-0 w-3 -translate-x-1/2 cursor-ew-resize"
       style={{ left: `${position * 100}%` }}
     >

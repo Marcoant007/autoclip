@@ -58,8 +58,10 @@ class OllamaProvider(LLMProvider):
                 hint=f"Pull one first, e.g. `ollama pull {RECOMMENDED_MODELS[0]}`.",
             )
 
-        schema = ClipCandidates.model_json_schema()
-        schema["required"] = ["clips"]
+        schema = config.response_schema
+        if schema is None:
+            schema = ClipCandidates.model_json_schema()
+            schema["required"] = ["clips"]
         payload = {
             "model": self.model,
             "system": system,
@@ -69,7 +71,7 @@ class OllamaProvider(LLMProvider):
             "options": {
                 "temperature": config.temperature,
                 "num_ctx": _CONTEXT_LENGTH,
-                "num_predict": _MAX_GENERATED_TOKENS,
+                "num_predict": config.max_output_tokens or _MAX_GENERATED_TOKENS,
             },
         }
 
@@ -98,9 +100,9 @@ class OllamaProvider(LLMProvider):
 
         if data.get("done_reason") == "length":
             raise ProviderError(
-                "Ollama reached the response token limit before completing clip data.",
+                "Ollama reached the response token limit before completing the response.",
                 provider=self.name,
-                hint="Reduce the requested number of clips or use a smaller transcript window.",
+                hint="Request fewer scenes or clips, shorten the input, or use another model.",
             )
         return data.get("response", "")
 

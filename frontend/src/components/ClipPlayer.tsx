@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { formatTimecode, type CaptionStyle, type CropPath, type Word } from '../api'
+import { Icon } from './Icon'
 
 const VOLUME_KEY = 'autoclip.volume'
 
@@ -131,12 +132,12 @@ export function ClipPlayer({
   return (
     <div className="mx-auto flex w-full flex-col items-stretch" style={{ maxWidth }}>
       <div
-        className="relative w-full overflow-hidden bg-ink-850"
+        className="relative w-full overflow-hidden rounded-xl bg-ink-950 shadow-[0_24px_48px_-24px_rgb(0_0_0/0.9)]"
         style={{ aspectRatio: `${aspectW} / ${aspectH}` }}
         onClick={toggle}
         role="button"
         tabIndex={0}
-        aria-label={playing ? 'Pause' : 'Play'}
+        aria-label={playing ? 'Pausar' : 'Reproduzir'}
         onKeyDown={(e) => {
           if (e.key === ' ' || e.key === 'Enter') {
             e.preventDefault()
@@ -159,16 +160,20 @@ export function ClipPlayer({
 
         {!playing && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
-            <span className="grid size-16 place-items-center rounded-full bg-ink-900/70 pl-1 text-2xl text-ink-100 backdrop-blur-[2px]">
-              ▶
+            <span className="grid size-16 place-items-center rounded-full bg-ink-950/70 pl-1 text-ink-100 ring-1 ring-white/10 backdrop-blur-sm">
+              <Icon name="play" size={24} strokeWidth={0} className="fill-current" />
             </span>
           </div>
         )}
       </div>
 
       <div className="mt-3 flex w-full items-center gap-4">
-        <button onClick={toggle} className="btn btn-quiet -ml-1 w-14 justify-start">
-          {playing ? 'Pause' : 'Play'}
+        <button
+          onClick={toggle}
+          className="grid size-9 shrink-0 place-items-center rounded-full bg-ink-100 text-ink-950 transition-transform hover:scale-105"
+          aria-label={playing ? 'Pausar' : 'Reproduzir'}
+        >
+          <Icon name={playing ? 'pause' : 'play'} size={15} strokeWidth={0} className={`fill-current ${playing ? '' : 'ml-0.5'}`} />
         </button>
 
         <VolumeControl
@@ -182,9 +187,9 @@ export function ClipPlayer({
           onToggleMute={() => setMuted((current) => !current)}
         />
 
-        <div className="h-px flex-1 bg-ink-800">
+        <div className="h-1 flex-1 overflow-hidden rounded-full bg-ink-800">
           <div
-            className="h-px origin-left bg-accent-500"
+            className="h-1 origin-left rounded-full bg-accent-500"
             style={{ transform: `scaleX(${elapsed / duration})` }}
           />
         </div>
@@ -195,19 +200,20 @@ export function ClipPlayer({
 
       {(muted || volume === 0) && (
         <p className="mt-2 text-xs text-accent-500">
-          Audio is muted — click the speaker to unmute.
+          O áudio está mudo — clique no alto-falante para ativar.
         </p>
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-        <button onClick={runAudioCheck} disabled={checking} className="btn btn-quiet -ml-1">
-          {checking ? 'Listening…' : 'Test audio'}
+        <button onClick={runAudioCheck} disabled={checking} className="btn btn-quiet btn-sm -ml-2">
+          <Icon name="volume" size={14} />
+          {checking ? 'Ouvindo…' : 'Testar áudio'}
         </button>
         <button
           onClick={() => setNativeControls((current) => !current)}
-          className="btn btn-quiet"
+          className="btn btn-quiet btn-sm"
         >
-          {nativeControls ? 'Hide browser controls' : 'Browser controls'}
+          {nativeControls ? 'Ocultar controles do navegador' : 'Controles do navegador'}
         </button>
       </div>
 
@@ -251,7 +257,7 @@ async function measureOutputLevel(element: HTMLVideoElement): Promise<AudioCheck
     return {
       ok: false,
       peakDb: null,
-      detail: "This browser can't measure audio output. Try the browser controls instead.",
+      detail: "Este navegador não consegue medir a saída de áudio. Tente os controles do navegador.",
     }
   }
 
@@ -265,7 +271,7 @@ async function measureOutputLevel(element: HTMLVideoElement): Promise<AudioCheck
     return {
       ok: false,
       peakDb: null,
-      detail: 'This video exposes no audio track at all — that is a problem in AutoClip.',
+      detail: 'Este vídeo não tem nenhuma faixa de áudio — isso é um problema no AutoClip.',
     }
   }
 
@@ -290,8 +296,8 @@ async function measureOutputLevel(element: HTMLVideoElement): Promise<AudioCheck
       ok: false,
       peakDb: null,
       detail:
-        'No signal is leaving the player. Either the clip really is silent, or the ' +
-        'player is muted — check the speaker icon above.',
+        'Nenhum som está saindo do player. Ou o trecho é realmente silencioso, ou o ' +
+        'player está mudo — confira o ícone do alto-falante acima.',
     }
   }
 
@@ -300,10 +306,10 @@ async function measureOutputLevel(element: HTMLVideoElement): Promise<AudioCheck
     ok: true,
     peakDb,
     detail:
-      `Audio is leaving the player at ${peakDb.toFixed(1)} dBFS — the app is producing sound. ` +
-      'If you still hear nothing, it is between the browser and your speakers: right-click ' +
-      'this tab and check for "Unmute site", then check Windows Volume Mixer and your ' +
-      'output device.',
+      `O áudio está saindo do player a ${peakDb.toFixed(1)} dBFS — o app está produzindo som. ` +
+      'Se ainda não ouvir nada, o problema está entre o navegador e seus alto-falantes: clique ' +
+      'com o botão direito nesta aba e veja se há "Ativar som do site", depois confira o ' +
+      'Mixer de Volume do Windows e o dispositivo de saída.',
   }
 }
 
@@ -390,9 +396,9 @@ function VolumeControl({
     <div className="flex items-center gap-2">
       <button
         onClick={onToggleMute}
-        className={`btn btn-quiet px-1 ${silent ? 'text-accent-500' : ''}`}
-        aria-label={silent ? 'Unmute' : 'Mute'}
-        title={silent ? 'Unmute' : 'Mute'}
+        className={`btn btn-quiet btn-icon ${silent ? 'text-accent-500' : ''}`}
+        aria-label={silent ? 'Ativar som' : 'Silenciar'}
+        title={silent ? 'Ativar som' : 'Silenciar'}
       >
         <SpeakerIcon silent={silent} level={volume} />
       </button>

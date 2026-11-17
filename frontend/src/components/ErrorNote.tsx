@@ -1,4 +1,5 @@
 import { ApiError } from '../api'
+import { Icon } from './Icon'
 
 /**
  * A failure and, where the server offered one, the fix.
@@ -17,19 +18,30 @@ export function ErrorNote({
   const hint = error instanceof ApiError ? error.hint : ''
 
   return (
-    <div className="border-l-2 border-signal-bad pl-4">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-sm font-medium text-ink-100">{error.message}</p>
-        {onDismiss && (
-          <button onClick={onDismiss} className="btn btn-quiet shrink-0" aria-label="Dismiss">
-            ✕
-          </button>
+    <div
+      role="alert"
+      className="fade-in flex items-start gap-3 rounded-xl border border-signal-bad/30 bg-signal-bad/[0.06] px-4 py-3"
+    >
+      <Icon name="alert" size={17} className="mt-0.5 text-signal-bad" />
+      <div className="min-w-0 flex-1">
+        <p className="whitespace-pre-line text-sm font-semibold text-ink-100 [overflow-wrap:anywhere]">
+          {error.message}
+        </p>
+        {hint && (
+          <p className="mt-1.5 max-w-prose whitespace-pre-line text-sm leading-relaxed text-ink-400">
+            {hint}
+          </p>
         )}
       </div>
-      {hint && (
-        <p className="mt-2 max-w-prose whitespace-pre-line text-sm leading-relaxed text-ink-400">
-          {hint}
-        </p>
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="btn btn-quiet btn-icon -mr-1 -mt-1"
+          aria-label="Fechar aviso"
+        >
+          <Icon name="x" size={15} />
+        </button>
       )}
     </div>
   )

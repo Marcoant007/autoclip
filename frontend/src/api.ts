@@ -184,6 +184,66 @@ export interface JobSettingsOverrides {
   ratio?: string
 }
 
+export interface CreationBrief {
+  topic: string
+  niche: 'biblical' | 'technology' | 'general'
+  duration_s: number
+  language: 'pt-BR' | 'en' | 'es'
+  audience: string
+  visual_style: 'illustrated' | 'motion_graphics'
+  reference_notes: string
+  instructions: string
+}
+
+export interface StoryboardScene {
+  narration: string
+  visual_description: string
+  on_screen_text: string
+  image_id?: string | null
+}
+
+export interface Storyboard {
+  title: string
+  description: string
+  scenes: StoryboardScene[]
+  references: string[]
+  review_notes: string[]
+  narration_word_count: number
+  estimated_duration_s: number
+}
+
+export interface Creation {
+  id: string
+  brief: CreationBrief
+  storyboard: Storyboard
+  provider: string
+  model: string
+  revision: number
+  created_at: string
+  updated_at: string
+}
+
+export interface RenderOptions {
+  voice: string | null
+  rate_percent: number
+  resolution: '720p' | '1080p'
+  caption_style: 'bold_pop' | 'karaoke_fill' | 'clean_lower' | 'boxed'
+}
+
+export interface CreationRender {
+  id: string
+  creation_id: string
+  revision: number
+  options: RenderOptions
+  status: JobStatus
+  stage: string
+  progress: number
+  error: string | null
+  duration_s: number
+  created_at: string
+  updated_at: string
+}
+
 /** An API error carrying the server's message and its actionable hint. */
 export class ApiError extends Error {
   hint: string
@@ -250,6 +310,46 @@ export const api = {
   },
 
   listJobs: (limit = 25) => request<Job[]>(`/api/jobs?limit=${limit}`),
+
+  listCreations: () => request<Creation[]>('/api/creations'),
+  importCreation: (brief: CreationBrief, storyboard: Storyboard) =>
+    request<Creation>('/api/creations/import', {
+      method: 'POST', body: JSON.stringify({brief, storyboard}),
+    }),
+  getCreation: (id: string) => request<Creation>(`/api/creations/${id}`),
+  generateCreation: (brief: CreationBrief, provider?: string) =>
+    request<Creation>('/api/creations', {
+      method: 'POST',
+      body: JSON.stringify({ brief, provider }),
+    }),
+  saveCreation: (id: string, storyboard: Storyboard, revision: number) =>
+    request<Creation>(`/api/creations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ storyboard, revision }),
+    }),
+  creationDownloadUrl: (id: string) => `/api/creations/${id}/download`,
+  creationVoices: (id: string) =>
+    request<{id: string; label: string; default: boolean}[]>(`/api/creations/${id}/voices`),
+  uploadCreationImage: (id: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<{image_id: string}>(`/api/creations/${id}/images`, {method: 'POST', body: form})
+  },
+  creationImageUrl: (id: string, imageId: string) => `/api/creations/${id}/images/${imageId}`,
+  createRender: (id: string, revision: number, options: RenderOptions) =>
+    request<CreationRender>(`/api/creations/${id}/renders`, {
+      method: 'POST', body: JSON.stringify({revision, options}),
+    }),
+  listCreationRenders: (id: string) => request<CreationRender[]>(`/api/creations/${id}/renders`),
+  cancelCreationRender: (id: string, renderId: string) =>
+    request<CreationRender>(`/api/creations/${id}/renders/${renderId}/cancel`, {method: 'POST'}),
+  retryCreationRender: (id: string, renderId: string) =>
+    request<CreationRender>(`/api/creations/${id}/renders/${renderId}/retry`, {method: 'POST'}),
+  creationRenderMediaUrl: (id: string, renderId: string, download = false) =>
+    `/api/creations/${id}/renders/${renderId}/media${download ? '?download=true' : ''}`,
+  creationRenderSubtitlesUrl: (id: string, renderId: string) =>
+    `/api/creations/${id}/renders/${renderId}/subtitles`,
+
   getJob: (id: string) => request<Job>(`/api/jobs/${id}`),
   getJobLogs: (id: string) => request<JobLog[]>(`/api/jobs/${id}/logs`),
 
@@ -337,4 +437,16 @@ export function formatBytes(bytes: number): string {
     unit += 1
   }
   return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`
+}
+
+/** "há 3 min", "ontem", or a date — enough to scan a list by recency. */
+export function formatRelative(iso: string): string {
+  const date = new Date(iso)
+  const diff = (Date.now() - date.getTime()) / 1000
+  if (Number.isNaN(diff)) return ''
+  if (diff < 60) return 'agora'
+  if (diff < 3600) return `há ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `há ${Math.floor(diff / 3600)} h`
+  if (diff < 172800) return 'ontem'
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }

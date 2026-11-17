@@ -1,0 +1,72 @@
+{
+  "id": "23adadf52bee4271",
+  "brief": {
+    "topic": "Explique sobre Aws KMS para oq serve, como surgiu e oq ele resolve",
+    "niche": "technology",
+    "duration_s": 75,
+    "language": "pt-BR",
+    "audience": "Público geral",
+    "visual_style": "illustrated",
+    "reference_notes": "",
+    "instructions": "linguagem simples"
+  },
+  "storyboard": {
+    "title": "AWS KMS: quem protege as chaves?",
+    "description": "Entenda por que o AWS KMS existe e como ele ajuda a controlar o uso das chaves de criptografia.",
+    "scenes": [
+      {
+        "narration": "Criptografar seus dados é como trancar um cofre. Mas surge outra pergunta: quem protege a chave desse cofre?",
+        "visual_description": "Cofre fechado, uma chave e um ponto de interrogação. Paleta azul escuro e verde.",
+        "on_screen_text": "Quem protege a chave?",
+        "image_id": null
+      },
+      {
+        "narration": "O AWS KMS é um serviço da Amazon para criar e controlar chaves usadas na criptografia e na assinatura de dados.",
+        "visual_description": "Um painel central organiza chaves, com conexões para aplicações.",
+        "on_screen_text": "Criar e controlar chaves",
+        "image_id": null
+      },
+      {
+        "narration": "Ele foi lançado em novembro de dois mil e quatorze. A proposta era facilitar o gerenciamento dessas chaves e a integração com outros serviços da AWS.",
+        "visual_description": "Linha do tempo destaca novembro de 2014 e conecta serviços em nuvem.",
+        "on_screen_text": "Novembro de 2014",
+        "image_id": null
+      },
+      {
+        "narration": "O serviço protege as chaves com módulos de segurança de hardware, chamados HSMs. As chaves do KMS não saem do serviço sem criptografia.",
+        "visual_description": "Chave protegida dentro de um módulo de hardware; aplicações acessam operações, não a chave em texto aberto.",
+        "on_screen_text": "Proteção com hardware",
+        "image_id": null
+      },
+      {
+        "narration": "As permissões definem quem pode usar cada chave. O CloudTrail ajuda a registrar seu uso. Assim, proteção, controle de acesso e auditoria ficam conectados.",
+        "visual_description": "Diagrama liga permissões, uma chave protegida e um registro de atividades.",
+        "on_screen_text": "Permissões e auditoria",
+        "image_id": null
+      },
+      {
+        "narration": "E atenção: o KMS oferece chaves simétricas e assimétricas. Não funciona somente com um par de chave pública e privada. Ele resolve o desafio de gerenciar e proteger as chaves.",
+        "visual_description": "Duas opções, simétrica e assimétrica, convergem para um painel de gerenciamento.",
+        "on_screen_text": "Gerenciar, proteger e controlar",
+        "image_id": null
+      }
+    ],
+    "references": [
+      "https://docs.aws.amazon.com/kms/latest/developerguide/overview.html",
+      "https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html",
+      "https://aws.amazon.com/about-aws/whats-new/2014/11/12/introducing-aws-key-management-service/"
+    ],
+    "review_notes": [
+      "Versão revisada a partir do roteiro original, com consulta às referências oficiais da AWS em 17/11/2026.",
+      "Corrige a explicação que apresentava o KMS apenas como criptografia de chave pública e privada.",
+      "O vídeo de demonstração usa cartelas animadas locais; não representa a interface real da AWS."
+    ],
+    "narration_word_count": 142,
+    "estimated_duration_s": 57
+  },
+  "provider": "ollama",
+  "model": "llama3.1:8b",
+  "revision": 2,
+  "created_at": "2026-11-17T20:47:18+00:00",
+  "updated_at": "2026-11-17T20:47:18+00:00"
+}

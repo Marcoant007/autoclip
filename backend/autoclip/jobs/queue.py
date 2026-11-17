@@ -17,9 +17,11 @@ import contextlib
 import logging
 from dataclasses import dataclass
 
-from ..db import store
+from ..db import creation_renders, store
 from ..db.models import Job
+from ..pipeline.creation_video import CreationVideoRunner
 from ..pipeline.runner import JobCancelled, PipelineRunner
+from ..production import CreationRender
 from .events import Event, broker, progress_event
 
 log = logging.getLogger(__name__)
@@ -76,6 +78,7 @@ class JobQueue:
             self._wakeup.set()
 
     def _requeue_interrupted(self) -> None:
+        creation_renders.requeue_interrupted()
         interrupted = store.list_jobs(limit=100, status="running")
         for job in interrupted:
             log.info("Requeuing job %s, interrupted by a restart.", job.id)
@@ -98,10 +101,23 @@ class JobQueue:
     def is_cancelled(self, job_id: str) -> bool:
         return job_id in self._cancel_requested
 
+    def cancel_creation_render(self, render_id: str) -> bool:
+        render = creation_renders.get(render_id)
+        if render is None or render.status not in ("queued", "running"):
+            return False
+        self._cancel_requested.add(render_id)
+        if render.status == "queued":
+            creation_renders.update(render_id, status="cancelled", stage="Cancelado")
+        return True
+
+    def reset_cancellation(self, render_id: str) -> None:
+        self._cancel_requested.discard(render_id)
+
     def status(self) -> QueueStatus:
         return QueueStatus(
             running_job_id=self._running_job_id,
-            queued=len(store.list_jobs(limit=100, status="queued")),
+            queued=len(store.list_jobs(limit=100, status="queued"))
+            + creation_renders.queued_count(),
         )
 
     # -- worker ------------------------------------------------------------
@@ -111,13 +127,35 @@ class JobQueue:
         assert wakeup is not None
 
         while not self._stopping:
-            job = await asyncio.to_thread(store.next_queued_job)
-            if job is None:
-                wakeup.clear()
+            # Clear before reading so work enqueued during the reads cannot
+            # lose its wakeup and remain idle until a second request arrives.
+            wakeup.clear()
+            job, render = await asyncio.gather(
+                asyncio.to_thread(store.next_queued_job),
+                asyncio.to_thread(creation_renders.next_queued),
+            )
+            if render is not None and (job is None or render.created_at < job.created_at):
+                await self._run_creation(render)
+            elif job is not None:
+                await self._run_one(job)
+            else:
                 await wakeup.wait()
-                continue
 
-            await self._run_one(job)
+    async def _run_creation(self, render: CreationRender) -> None:
+        self._running_job_id = render.id
+        runner = CreationVideoRunner(
+            render, cancelled=lambda: self._stopping or self.is_cancelled(render.id)
+        )
+        try:
+            await asyncio.to_thread(_run_blocking, runner)
+        except Exception as exc:
+            creation_renders.update(
+                render.id, status="failed", stage="Falha na produção", error=str(exc)
+            )
+            log.exception("Creation render %s failed.", render.id)
+        finally:
+            self._running_job_id = None
+            self._cancel_requested.discard(render.id)
 
     async def _run_one(self, job: Job) -> None:
         source = await asyncio.to_thread(store.get_source, job.source_id)
@@ -156,7 +194,7 @@ class JobQueue:
             self._cancel_requested.discard(job.id)
 
 
-def _run_blocking(runner: PipelineRunner):
+def _run_blocking(runner: PipelineRunner | CreationVideoRunner):
     """Run the pipeline in a worker thread with its own event loop.
 
     The pipeline is overwhelmingly blocking work with one async stage, so it

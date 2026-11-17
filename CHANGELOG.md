@@ -11,6 +11,17 @@ being validated against a fixed golden video set — see
 
 ### Added
 
+- **2D cartoon renderer** — per-frame character rigs with walking, gestures,
+  expressions, blinking and speech-driven mouths; original street, room and
+  courtyard sets; cast voices; validated AI direction that preserves spoken text;
+  a Moneyzi acting pilot and a frontend integration contract.
+- **Original-video production** — online narration with selectable voices and speed,
+  animated text cards or uploaded scene images, synchronized burned captions,
+  vertical MP4/SRT downloads, and a preview player. Renders share the clip worker,
+  snapshot script revisions, and support cancellation and resumable retries.
+- **Original-video planning** — a Portuguese "Criar por tema" screen for topic briefs,
+  scene-by-scene scripts, visual directions and editable post copy. Reuses configured
+  LLM providers, stores versioned storyboards locally, and exports JSON.
 - **Pipeline** — ingest (YouTube via yt-dlp, or file upload), audio preparation,
   transcription with word-level timings, LLM highlight detection, speaker-tracked
   reframing, ASS caption generation, and export at 9:16 / 1:1 / 16:9.

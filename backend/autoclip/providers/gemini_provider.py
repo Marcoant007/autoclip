@@ -50,7 +50,7 @@ class GeminiProvider(LLMProvider):
             temperature=config.temperature,
             # Gemini enforces JSON natively, which removes most parse failures.
             response_mime_type="application/json",
-            max_output_tokens=8192,
+            max_output_tokens=config.max_output_tokens or 8192,
         )
 
         try:

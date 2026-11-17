@@ -1,22 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import {
   ApiError,
   api,
   formatDuration,
+  formatRelative,
   type Job,
   type JobSettingsOverrides,
   type ProviderStatus,
 } from '../api'
 import { ErrorNote } from '../components/ErrorNote'
+import { Icon, Spinner } from '../components/Icon'
+import { Callout, EmptyState, Field, PageHeader, Segmented, StatusBadge, Toggle } from '../components/ui'
+
+type SourceMode = 'url' | 'file'
+
+const WHISPER_OPTIONS = [
+  { value: '', label: 'Padrão das configurações' },
+  { value: 'tiny', label: 'Muito rápido (tiny) — menos preciso' },
+  { value: 'base', label: 'Rápido (base)' },
+  { value: 'small', label: 'Equilibrado (small)' },
+  { value: 'medium', label: 'Preciso (medium)' },
+  { value: 'large-v3', label: 'Máxima precisão (large-v3) — mais lento' },
+]
 
 export function Ingest() {
   const navigate = useNavigate()
+  const [mode, setMode] = useState<SourceMode>('url')
   const [url, setUrl] = useState('')
-  const [busy, setBusy] = useState<'url' | 'file' | null>(null)
+  const [busy, setBusy] = useState<SourceMode | null>(null)
   const [error, setError] = useState<ApiError | Error | null>(null)
-  const [jobs, setJobs] = useState<Job[]>([])
+  const [jobs, setJobs] = useState<Job[] | null>(null)
   const [providers, setProviders] = useState<ProviderStatus[]>([])
   const [overrides, setOverrides] = useState<JobSettingsOverrides>({})
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -24,12 +39,12 @@ export function Ingest() {
   const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    api.listJobs(8).then(setJobs).catch(() => undefined)
+    api.listJobs(10).then(setJobs).catch(() => setJobs([]))
     api.providerStatus().then(setProviders).catch(() => undefined)
   }, [])
 
   const start = useCallback(
-    async (kind: 'url' | 'file', run: () => Promise<{ id: string }>) => {
+    async (kind: SourceMode, run: () => Promise<{ id: string }>) => {
       setBusy(kind)
       setError(null)
       try {
@@ -54,51 +69,138 @@ export function Ingest() {
   const submitFile = (file: File) => void start('file', () => api.uploadSource(file))
 
   const usableProvider = providers.find((p) => p.available)
+  const customized = Object.values(overrides).some((value) => value !== undefined)
 
   return (
-    <div className="pt-14">
-      {/* Masthead. Left-aligned and asymmetric — the field is the subject, not
-          a centred hero card. */}
-      <div className="rise max-w-3xl">
-        <p className="eyebrow">Local · No accounts · No watermarks</p>
-        <h1 className="mt-5 font-display text-[clamp(2.75rem,7vw,5.5rem)] leading-[0.95] text-ink-100">
-          Long video in.
-          <br />
-          <span className="italic text-accent-500">Shorts</span> out.
-        </h1>
-      </div>
+    <div>
+      <PageHeader
+        eyebrow={<><Icon name="scissors" size={13} /> Cortar vídeo</>}
+        title={<>Vídeo longo entra. <span className="italic text-accent-500">Shorts</span> saem.</>}
+        description="A IA transcreve, encontra os momentos que funcionam sozinhos, enquadra quem está falando no formato vertical e coloca legendas animadas."
+      />
 
-      <div className="mt-16 grid gap-x-16 gap-y-12 lg:grid-cols-[1.35fr_1fr]">
-        {/* URL */}
-        <section className="rise" style={{ animationDelay: '90ms' }}>
-          <form onSubmit={submitUrl}>
-            <label htmlFor="url" className="eyebrow">
-              Paste a link
-            </label>
-            <div className="mt-3 flex items-end gap-4">
-              <input
-                id="url"
-                className="field font-display text-xl md:text-2xl"
-                placeholder="https://youtube.com/watch?v=…"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-                disabled={busy !== null}
-              />
-              <button
-                type="submit"
-                className="btn btn-primary shrink-0"
-                disabled={busy !== null || !url.trim()}
-              >
-                {busy === 'url' ? 'Fetching…' : 'Start'}
-              </button>
+      {providers.length > 0 && !usableProvider && (
+        <div className="mt-8 max-w-3xl">
+          <Callout
+            tone="warn"
+            title="Nenhum provedor de IA está acessível"
+            action={<Link to="/settings" className="btn btn-ghost btn-sm">Configurar</Link>}
+          >
+            Sem ele a escolha dos cortes vai falhar. Adicione uma chave de API ou inicie o Ollama.
+          </Callout>
+        </div>
+      )}
+
+      <div className="mt-10 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="card-raised rise min-w-0 p-5 sm:p-7" style={{ animationDelay: '80ms' }}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h2 className="text-base font-semibold text-ink-100">De onde vem o vídeo?</h2>
+            <Segmented<SourceMode>
+              ariaLabel="Origem do vídeo"
+              value={mode}
+              onChange={setMode}
+              disabled={busy !== null}
+              options={[
+                { value: 'url', label: 'Link do YouTube', icon: 'link' },
+                { value: 'file', label: 'Arquivo', icon: 'upload' },
+              ]}
+            />
+          </div>
+
+          <div className="mt-6">
+            {mode === 'url' ? (
+              <form onSubmit={submitUrl} className="fade-in">
+                <label htmlFor="url" className="sr-only">Link do vídeo</label>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <div className="relative flex-1">
+                    <Icon
+                      name="link"
+                      size={18}
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-500"
+                    />
+                    <input
+                      id="url"
+                      className="input !rounded-xl !py-3.5 !pl-11 text-base"
+                      placeholder="https://youtube.com/watch?v=…"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      autoComplete="off"
+                      spellCheck={false}
+                      disabled={busy !== null}
+                      autoFocus
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-lg shrink-0"
+                    disabled={busy !== null || !url.trim()}
+                  >
+                    {busy === 'url' ? <><Spinner /> Baixando…</> : <><Icon name="wand" size={17} /> Encontrar cortes</>}
+                  </button>
+                </div>
+                <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-500">
+                  <Icon name="info" size={13} />
+                  Baixe apenas vídeos que você tem direito de usar.
+                </p>
+              </form>
+            ) : (
+              <div className="fade-in">
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    setDragging(true)
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    setDragging(false)
+                    const file = e.dataTransfer.files[0]
+                    if (file && busy === null) submitFile(file)
+                  }}
+                  className={[
+                    'flex min-h-56 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 text-center transition-colors duration-200',
+                    dragging
+                      ? 'border-accent-500 bg-accent-500/[0.06]'
+                      : 'border-ink-750 bg-ink-900/60 hover:border-ink-600',
+                  ].join(' ')}
+                  onClick={() => busy === null && fileInput.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') fileInput.current?.click()
+                  }}
+                >
+                  <span className="grid size-14 place-items-center rounded-2xl bg-ink-800 text-accent-400">
+                    {busy === 'file' ? <Spinner size={22} /> : <Icon name="upload" size={24} />}
+                  </span>
+                  <span className="text-base font-semibold text-ink-100">
+                    {busy === 'file' ? 'Enviando arquivo…' : 'Arraste o vídeo ou áudio aqui'}
+                  </span>
+                  <span className="text-sm text-ink-500">
+                    ou <span className="link">escolha no computador</span>
+                  </span>
+                  <span className="mt-1 text-xs text-ink-600">mp4 · mov · mkv · webm · mp3 · wav · m4a</span>
+                </div>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  className="hidden"
+                  accept="video/*,audio/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) submitFile(file)
+                    e.target.value = ''
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="mt-5">
+              <ErrorNote error={error} onDismiss={() => setError(null)} />
             </div>
-          </form>
-
-          <p className="mt-3 text-xs leading-relaxed text-ink-500">
-            Only download video you own or have the rights to process.
-          </p>
+          )}
 
           <AdvancedOptions
             open={advancedOpen}
@@ -106,72 +208,36 @@ export function Ingest() {
             overrides={overrides}
             onChange={setOverrides}
             providers={providers}
+            customized={customized}
           />
         </section>
 
-        {/* Upload */}
-        <section className="rise" style={{ animationDelay: '160ms' }}>
-          <p className="eyebrow">Or drop a file</p>
-          <div
-            onDragOver={(e) => {
-              e.preventDefault()
-              setDragging(true)
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setDragging(false)
-              const file = e.dataTransfer.files[0]
-              if (file) submitFile(file)
-            }}
-            className={[
-              'mt-3 flex min-h-52 cursor-pointer flex-col items-center justify-center gap-2 border border-dashed px-6 text-center transition-colors duration-200',
-              dragging
-                ? 'border-accent-500 bg-accent-700/10'
-                : 'border-ink-700 hover:border-ink-600',
-            ].join(' ')}
-            onClick={() => fileInput.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') fileInput.current?.click()
-            }}
-          >
-            <span className="font-display text-2xl text-ink-200">
-              {busy === 'file' ? 'Uploading…' : 'Drop video or audio'}
-            </span>
-            <span className="text-xs text-ink-500">mp4 · mov · mkv · webm · mp3 · wav · m4a</span>
-          </div>
-          <input
-            ref={fileInput}
-            type="file"
-            className="hidden"
-            accept="video/*,audio/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) submitFile(file)
-              e.target.value = ''
-            }}
-          />
-        </section>
+        <aside className="rise card min-w-0 p-5 sm:p-6" style={{ animationDelay: '140ms' }}>
+          <h2 className="text-sm font-semibold text-ink-100">Como funciona</h2>
+          <ol className="mt-4 space-y-4">
+            {[
+              { icon: 'upload' as const, title: 'Envie', text: 'Link do YouTube ou arquivo do seu computador.' },
+              { icon: 'captions' as const, title: 'Transcrição', text: 'Cada palavra é transcrita com tempo exato.' },
+              { icon: 'wand' as const, title: 'A IA escolhe', text: 'Os trechos com gancho e começo-meio-fim viram cortes.' },
+              { icon: 'ratio' as const, title: 'Enquadramento', text: 'A câmera segue quem fala no formato 9:16.' },
+              { icon: 'check' as const, title: 'Você revisa', text: 'Aprove, ajuste o início/fim, a legenda e exporte.' },
+            ].map((step, index) => (
+              <li key={step.title} className="flex gap-3">
+                <span className="relative flex flex-col items-center">
+                  <span className="grid size-8 place-items-center rounded-lg bg-ink-800 text-accent-400">
+                    <Icon name={step.icon} size={15} />
+                  </span>
+                  {index < 4 && <span className="mt-1 w-px flex-1 bg-ink-800" />}
+                </span>
+                <span className="pb-1">
+                  <span className="block text-sm font-semibold text-ink-200">{step.title}</span>
+                  <span className="block text-xs leading-relaxed text-ink-500">{step.text}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </aside>
       </div>
-
-      {error && (
-        <div className="mt-10 max-w-3xl">
-          <ErrorNote error={error} onDismiss={() => setError(null)} />
-        </div>
-      )}
-
-      {providers.length > 0 && !usableProvider && (
-        <p className="mt-10 max-w-3xl border-l-2 border-accent-600 pl-4 text-sm text-ink-300">
-          No AI provider is reachable yet, so clip selection will fail. Add an API key or
-          start Ollama in{' '}
-          <a href="/settings" className="text-accent-500 underline underline-offset-4">
-            Settings
-          </a>
-          .
-        </p>
-      )}
 
       <RecentJobs jobs={jobs} />
     </div>
@@ -184,74 +250,95 @@ function AdvancedOptions({
   overrides,
   onChange,
   providers,
+  customized,
 }: {
   open: boolean
   onToggle: () => void
   overrides: JobSettingsOverrides
   onChange: (next: JobSettingsOverrides) => void
   providers: ProviderStatus[]
+  customized: boolean
 }) {
   const set = <K extends keyof JobSettingsOverrides>(key: K, value: JobSettingsOverrides[K]) =>
     onChange({ ...overrides, [key]: value })
 
   return (
-    <div className="mt-8">
-      <button type="button" onClick={onToggle} className="btn btn-quiet -ml-1">
-        <span
-          className="inline-block transition-transform duration-300"
-          style={{ transform: open ? 'rotate(90deg)' : 'none' }}
-          aria-hidden
+    <div className="mt-7 border-t border-ink-800 pt-5">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex flex-1 items-center justify-between gap-4 text-left"
         >
-          ›
-        </span>
-        {open ? 'Hide options' : 'Options'}
-      </button>
+          <span className="flex items-center gap-3">
+            <span className="grid size-8 place-items-center rounded-lg bg-ink-800 text-ink-300">
+              <Icon name="settings" size={16} />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-ink-100">Ajustes deste corte</span>
+              <span className="block text-xs text-ink-500">
+                {customized ? 'Personalizado para este vídeo' : 'Usando o padrão das Configurações'}
+              </span>
+            </span>
+          </span>
+          <Icon
+            name="chevronDown"
+            size={18}
+            className={`order-last text-ink-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {customized && (
+          <button type="button" className="btn btn-quiet btn-sm" onClick={() => onChange({})}>
+            Restaurar padrão
+          </button>
+        )}
+      </div>
 
-      {/* grid-template-rows rather than height, so the reveal animates without
-          touching layout properties. */}
       <div
         className="grid transition-[grid-template-rows] duration-400 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden">
-          <div className="grid gap-x-8 gap-y-5 pt-5 sm:grid-cols-2">
-            <Selector
-              label="Provider"
-              value={overrides.provider ?? ''}
-              onChange={(v) => set('provider', v || undefined)}
-              options={[
-                { value: '', label: 'Use default' },
-                ...providers.map((p) => ({
-                  value: p.name,
-                  label: p.available ? p.name : `${p.name} — unavailable`,
-                  disabled: !p.available,
-                })),
-              ]}
-            />
-            <Selector
-              label="Whisper model"
-              value={overrides.whisper_model ?? ''}
-              onChange={(v) => set('whisper_model', v || undefined)}
-              options={[
-                { value: '', label: 'Use default' },
-                { value: 'tiny', label: 'tiny — fastest, roughest' },
-                { value: 'base', label: 'base' },
-                { value: 'small', label: 'small — balanced' },
-                { value: 'medium', label: 'medium' },
-                { value: 'large-v3', label: 'large-v3 — slowest, best' },
-              ]}
-            />
+          <div className="grid gap-x-6 gap-y-5 pt-6 sm:grid-cols-2">
+            <Field label="IA que escolhe os cortes" htmlFor="opt-provider">
+              <select
+                id="opt-provider"
+                className="input"
+                value={overrides.provider ?? ''}
+                onChange={(e) => set('provider', e.target.value || undefined)}
+              >
+                <option value="">Padrão das configurações</option>
+                {providers.map((p) => (
+                  <option key={p.name} value={p.name} disabled={!p.available}>
+                    {p.available ? p.name : `${p.name} — indisponível`}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Precisão da transcrição" htmlFor="opt-whisper">
+              <select
+                id="opt-whisper"
+                className="input"
+                value={overrides.whisper_model ?? ''}
+                onChange={(e) => set('whisper_model', e.target.value || undefined)}
+              >
+                {WHISPER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </Field>
             <NumberField
-              label="Max clips"
+              label="Quantidade máxima de cortes"
               value={overrides.max_clips}
               placeholder="10"
               min={1}
               max={50}
               onChange={(v) => set('max_clips', v)}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <NumberField
-                label="Min length (s)"
+                label="Duração mín. (s)"
                 value={overrides.min_duration_s}
                 placeholder="20"
                 min={5}
@@ -259,7 +346,7 @@ function AdvancedOptions({
                 onChange={(v) => set('min_duration_s', v)}
               />
               <NumberField
-                label="Max length (s)"
+                label="Duração máx. (s)"
                 value={overrides.max_duration_s}
                 placeholder="90"
                 min={5}
@@ -267,53 +354,18 @@ function AdvancedOptions({
                 onChange={(v) => set('max_duration_s', v)}
               />
             </div>
-            <label className="flex items-center gap-3 text-sm text-ink-200 sm:col-span-2">
-              <input
-                type="checkbox"
+            <div className="sm:col-span-2">
+              <Toggle
                 checked={overrides.diarization ?? false}
-                onChange={(e) => set('diarization', e.target.checked || undefined)}
-                className="size-4 accent-accent-500"
+                onChange={(checked) => set('diarization', checked || undefined)}
+                label="Várias pessoas falando"
+                description="Identifica quem está falando e corta para essa pessoa no enquadramento."
               />
-              Multiple speakers — label who is talking, and cut to them
-            </label>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  )
-}
-
-function Selector({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  options: { value: string; label: string; disabled?: boolean }[]
-}) {
-  return (
-    <label className="block">
-      <span className="eyebrow">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="field mt-1 cursor-pointer text-sm"
-      >
-        {options.map((option) => (
-          <option
-            key={option.value}
-            value={option.value}
-            disabled={option.disabled}
-            className="bg-ink-850"
-          >
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
   )
 }
 
@@ -332,69 +384,69 @@ function NumberField({
   max: number
   onChange: (value: number | undefined) => void
 }) {
+  const id = `num-${label}`
   return (
-    <label className="block">
-      <span className="eyebrow">{label}</span>
+    <Field label={label} htmlFor={id}>
       <input
+        id={id}
         type="number"
-        className="field numeric mt-1 text-sm"
+        className="input numeric"
         placeholder={placeholder}
         value={value ?? ''}
         min={min}
         max={max}
         onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined)}
       />
-    </label>
+    </Field>
   )
 }
 
-function RecentJobs({ jobs }: { jobs: Job[] }) {
-  if (jobs.length === 0) return null
-
+function RecentJobs({ jobs }: { jobs: Job[] | null }) {
   return (
-    <section className="rise mt-24" style={{ animationDelay: '240ms' }}>
-      <div className="flex items-baseline justify-between border-b border-ink-800 pb-3">
-        <h2 className="eyebrow">Recent</h2>
-        <span className="numeric text-xs text-ink-600">{jobs.length}</span>
+    <section className="rise mt-14" style={{ animationDelay: '220ms' }}>
+      <div className="mb-3 flex items-center justify-between px-1">
+        <h2 className="text-sm font-semibold text-ink-200">Vídeos processados</h2>
+        {jobs && jobs.length > 0 && (
+          <span className="numeric text-xs text-ink-500">{jobs.length} recentes</span>
+        )}
       </div>
 
-      <ul>
-        {jobs.map((job) => (
-          <li key={job.id}>
-            <a
-              href={job.status === 'done' ? `/jobs/${job.id}/clips` : `/jobs/${job.id}`}
-              className="group grid grid-cols-[1fr_auto] items-baseline gap-4 border-b border-ink-850 py-4 transition-colors duration-200 hover:bg-ink-850/40 sm:grid-cols-[1fr_7rem_6rem_5rem]"
-            >
-              <span className="truncate text-[0.9375rem] text-ink-200 group-hover:text-ink-100">
-                {job.source?.title || 'Untitled'}
-              </span>
-              <span className="numeric hidden text-xs text-ink-500 sm:block">
-                {job.source ? formatDuration(job.source.duration_s) : '—'}
-              </span>
-              <span className="hidden text-xs text-ink-500 sm:block">{job.provider}</span>
-              <StatusTag job={job} />
-            </a>
-          </li>
-        ))}
-      </ul>
+      {jobs === null ? (
+        <div className="card h-40 animate-pulse" />
+      ) : jobs.length === 0 ? (
+        <EmptyState
+          icon="film"
+          title="Nada processado ainda"
+          description="Quando você enviar o primeiro vídeo, ele aparece aqui para você voltar aos cortes depois."
+        />
+      ) : (
+        <ul className="card divide-y divide-ink-800/70 overflow-hidden">
+          {jobs.map((job) => (
+            <li key={job.id}>
+              <Link
+                to={job.status === 'done' ? `/jobs/${job.id}/clips` : `/jobs/${job.id}`}
+                className="group grid grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3.5 transition-colors hover:bg-ink-800/40 sm:grid-cols-[auto_1fr_6rem_7rem_auto_auto]"
+              >
+                <span className="grid size-10 place-items-center rounded-lg bg-ink-800 text-ink-400 group-hover:text-accent-400">
+                  <Icon name="film" size={18} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-ink-100">
+                    {job.source?.title || 'Sem título'}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-ink-500">{formatRelative(job.created_at)}</span>
+                </span>
+                <span className="numeric hidden text-xs text-ink-400 sm:block">
+                  {job.source ? formatDuration(job.source.duration_s) : '—'}
+                </span>
+                <span className="hidden truncate text-xs text-ink-400 sm:block">{job.provider}</span>
+                <StatusBadge status={job.status} progress={job.progress} />
+                <Icon name="chevronRight" size={16} className="hidden text-ink-600 group-hover:text-ink-300 sm:block" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
-  )
-}
-
-function StatusTag({ job }: { job: Job }) {
-  const tone: Record<string, string> = {
-    done: 'text-signal-good',
-    failed: 'text-signal-bad',
-    running: 'text-accent-500',
-    queued: 'text-ink-400',
-    cancelled: 'text-ink-500',
-  }
-  const label =
-    job.status === 'running' ? `${Math.round(job.progress * 100)}%` : job.status
-
-  return (
-    <span className={`numeric justify-self-end text-xs ${tone[job.status] ?? 'text-ink-400'}`}>
-      {label}
-    </span>
   )
 }

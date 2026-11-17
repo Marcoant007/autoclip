@@ -54,7 +54,7 @@ export function JobLogs({ entries, connected, active, error }: Props) {
   }
 
   return (
-    <section aria-labelledby="job-logs-title" className="min-w-0 overflow-hidden rounded-xl border border-ink-700 bg-ink-850/50">
+    <section aria-labelledby="job-logs-title" className="min-w-0 overflow-hidden rounded-2xl border border-ink-800 bg-ink-850/70">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-800 px-5 py-4">
         <div className="flex items-center gap-3">
           <span aria-hidden="true" className="font-mono text-xl text-accent-400">›_</span>
@@ -69,10 +69,10 @@ export function JobLogs({ entries, connected, active, error }: Props) {
       <div className="flex flex-wrap items-center gap-3 border-b border-ink-800 px-5 py-3">
         <label className="sr-only" htmlFor="log-search">Buscar nos logs</label>
         <input id="log-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)}
-          placeholder="Buscar nos logs…" className="min-w-32 flex-1 rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-xs text-ink-200 placeholder:text-ink-500" />
+          placeholder="Buscar nos logs…" className="input min-w-32 flex-1 !py-2 !text-xs" />
         <label className="sr-only" htmlFor="log-level">Filtrar por nível</label>
         <select id="log-level" value={filter} onChange={(event) => setFilter(event.target.value)}
-          className="rounded-md border border-ink-700 bg-ink-900 px-2 py-2 text-xs text-ink-200">
+          className="input !w-auto !py-2 !text-xs">
           <option value="all">Todos os níveis</option>
           <option value="warning">Avisos</option>
           <option value="error">Erros</option>
@@ -116,9 +116,9 @@ export function JobLogs({ entries, connected, active, error }: Props) {
           Acompanhar
         </label>
         <span className="numeric text-[11px] text-ink-500">{filtered.length} / {entries.length} registros</span>
-        <div className="flex gap-4">
-          <button className="text-xs text-ink-300 hover:text-accent-400 disabled:opacity-40" onClick={copy} disabled={!filtered.length}>Copiar</button>
-          <button className="text-xs text-ink-300 hover:text-accent-400 disabled:opacity-40" onClick={download} disabled={!filtered.length}>Baixar</button>
+        <div className="flex gap-2">
+          <button className="btn btn-ghost btn-sm" onClick={copy} disabled={!filtered.length}>Copiar</button>
+          <button className="btn btn-ghost btn-sm" onClick={download} disabled={!filtered.length}>Baixar</button>
         </div>
       </div>
       <p role="status" className={notice ? 'border-t border-ink-800 px-5 py-2 text-xs text-accent-400' : 'sr-only'}>

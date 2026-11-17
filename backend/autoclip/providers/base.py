@@ -1,8 +1,4 @@
-"""LLM provider abstraction.
-
-Highlight detection is the one place AutoClip asks a language model to make a
-judgement call, so the interface is deliberately narrow: a window of transcript
-goes in, a validated list of clip candidates comes out.
+"""LLM transports and validated output for highlights and original scripts.
 
 Two design choices carry most of the weight:
 
@@ -25,13 +21,14 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 log = logging.getLogger(__name__)
 
 PROMPT_DIR = Path(__file__).resolve().parent.parent / "prompts"
+ResponseModel = TypeVar("ResponseModel", bound=BaseModel)
 
 
 class ProviderError(RuntimeError):
@@ -116,6 +113,10 @@ class DetectionConfig:
     #: iterate on prompts without touching code.
     prompt_version: str = "highlight_v1"
     temperature: float = 0.3
+    #: Other structured tasks can reuse the transport without asking Ollama
+    #: to constrain every response to the clip-candidate schema.
+    response_schema: dict[str, Any] | None = None
+    max_output_tokens: int | None = None
 
 
 @dataclass
@@ -132,7 +133,7 @@ class ProviderStatus:
 
 
 class LLMProvider(ABC):
-    """Base class for highlight-detection providers."""
+    """Base class for structured text-generation providers."""
 
     #: Stable identifier, matching the key used in settings.
     name: str = ""
@@ -155,6 +156,38 @@ class LLMProvider(ABC):
         """Report whether this provider is usable right now."""
 
     # -- shared behaviour --------------------------------------------------
+
+    async def generate_structured(
+        self,
+        system: str,
+        user: str,
+        response_model: type[ResponseModel],
+        *,
+        max_output_tokens: int = 4096,
+    ) -> ResponseModel:
+        """Generate a validated JSON document, repairing one invalid response."""
+        config = DetectionConfig(
+            response_schema=response_model.model_json_schema(),
+            max_output_tokens=max_output_tokens,
+        )
+        prompt = user
+        for attempt in range(2):
+            raw = await self._complete(system, prompt, config)
+            try:
+                return response_model.model_validate(extract_json_object(raw))
+            except (ValidationError, ValueError) as exc:
+                if attempt:
+                    raise ProviderError(
+                        f"{self.name} returned malformed script data twice.",
+                        provider=self.name,
+                        hint="Try again or select a model with better structured-output support.",
+                    ) from exc
+                log.warning("%s returned invalid structured data; retrying.", self.name)
+                prompt = (
+                    f"{user}\n\nYour response did not match the required schema.\n"
+                    f"Validation error: {exc}\nReturn ONLY the corrected JSON object."
+                )
+        raise AssertionError("Unreachable")  # pragma: no cover
 
     async def detect_highlights(
         self, window: TranscriptWindow, config: DetectionConfig

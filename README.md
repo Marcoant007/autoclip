@@ -21,7 +21,11 @@ Two ways to run it:
 - **Fully local** — Whisper + Ollama. Nothing leaves your machine, no API costs.
 - **Bring your own key** — Anthropic, OpenAI, Gemini, or any OpenAI-compatible endpoint (OpenRouter, Groq, DeepSeek, LM Studio) for better clip selection.
 
-Only transcript *text* is ever sent to a provider — never video or audio. With Ollama, nothing is sent at all.
+LLM providers receive only transcript *text* or the brief for an original-video storyboard — never video or audio. With Ollama, text generation stays on your configured Ollama server.
+
+Original-video production can also synthesize narration through Microsoft's online
+Edge TTS service: the scene's spoken text is sent to that service. Image uploads,
+camera animation, captions and video assembly are processed locally.
 
 ## Status
 
@@ -157,6 +161,59 @@ the panel shows the latest 1,000 entries. Logs are stored with the job in
 Completed jobs stay on the progress page so their logs remain readable. Choose **Review clips**
 to continue, or use **Logs do processamento** on the review page to return to the history.
 Restart the AutoClip server after updating to enable the log endpoint and capture new runs.
+
+### Original-video storyboards
+
+Choose **Criar por tema** to turn a topic into an editable script and visual plan.
+Pick biblical, technology, or general content; set the language, desired duration,
+audience and visual style; and optionally paste reference material and instructions.
+Generation uses a provider and model already configured in Settings, including Ollama.
+
+The result contains narration, visual directions and optional on-screen text for
+each scene, suggested post copy, reference suggestions and review notes. Edit and
+save it locally, reopen it from the recent-storyboards list, or download JSON.
+Use **Importar roteiro JSON** to bring an exported or externally revised script
+back into the editor as a new production. Uploaded images must be supplied again.
+Durations are estimates at 150 spoken words per minute. References are not
+automatically verified, and supplied URLs are not fetched; paste relevant source
+text and check factual claims before publishing.
+
+After saving the script, choose a voice, speech rate, caption style and output
+resolution, then click **Gerar vídeo MP4**. Edge TTS supplies audio and measured
+word boundaries per scene. AutoClip animates the visuals, burns synchronized
+captions, normalizes audio and exports a vertical MP4 plus an SRT download.
+
+Scenes without images use locally drawn text cards with camera movement. Upload
+a PNG/JPG/WebP per scene for illustrated videos; images are cropped to fill 9:16.
+Visual descriptions are still planning instructions, not automatic AI illustration
+generation. Voices are available for Portuguese, English and Spanish. Narration
+needs an internet connection; no speech API key is required.
+
+For character animation, the backend also supports a bounded **2D cartoon**
+renderer: original configurable rigs, three illustrated sets, walks, gestures,
+expressions, blinking, dialogue voices and audio-driven mouths. Import
+`examples/moneyzi-cartoon-pilot.json` to try it through the existing editor.
+The [`Cartoon 2D integration guide`](docs/CARTOON_2D.md) documents `animate: true`,
+the planning endpoint and strict render modes for the frontend. This engine has a
+finite vocabulary of sets/rigs; it does not generate arbitrary 3D scenes.
+
+Renders share the existing FIFO worker with clips, so one video is processed at
+a time. Progress and outputs survive page reloads. A render snapshots its script
+revision and options; later script edits require a new render. Cancel or retry a
+production from its panel. Retries reuse completed speech and scene files.
+Existing clip processing and exports continue through **Cortes**.
+
+API: `POST /api/creations`, `GET /api/creations`, `GET /api/creations/{id}`,
+`PUT /api/creations/{id}` (storyboard plus revision), and
+`GET /api/creations/{id}/download`. Stale revisions return HTTP 409 to protect
+edits made in another tab.
+
+Production API: `GET /api/creations/{id}/voices`, `POST /api/creations/{id}/images`,
+`GET /api/creations/{id}/images/{image_id}`, `POST /api/creations/{id}/renders`,
+`GET /api/creations/{id}/renders`, and `GET /api/creations/{id}/renders/{render_id}`.
+Render actions/downloads use `/cancel`, `/retry`, `/logs`, `/media` (optional
+`?download=true`), `/poster`, and `/subtitles` under the render URL.
+Import a brief/storyboard through `POST /api/creations/import`.
 
 ### Caption styles
 

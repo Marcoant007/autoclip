@@ -104,9 +104,51 @@ def _migration_v1(conn: sqlite3.Connection) -> None:
     conn.executescript(_V1)
 
 
+def _migration_v2(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE creations (
+            id TEXT PRIMARY KEY,
+            brief_json TEXT NOT NULL,
+            storyboard_json TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            model TEXT NOT NULL,
+            revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
+
+
+def _migration_v3(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE creation_renders (
+            id TEXT PRIMARY KEY,
+            creation_id TEXT NOT NULL REFERENCES creations(id),
+            revision INTEGER NOT NULL,
+            snapshot_json TEXT NOT NULL,
+            options_json TEXT NOT NULL,
+            export_json TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN ('queued','running','done','failed','cancelled')),
+            stage TEXT NOT NULL,
+            progress REAL NOT NULL DEFAULT 0,
+            error TEXT,
+            duration_s REAL NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
+    conn.execute("CREATE INDEX idx_creation_renders_parent ON creation_renders(creation_id)")
+    conn.execute("""CREATE UNIQUE INDEX idx_creation_renders_active ON creation_renders(creation_id)
+                    WHERE status IN ('queued','running')""")
+
+
 #: Ordered migrations. Index + 1 is the resulting ``user_version``.
 #: Append only — never edit a migration that has shipped.
-MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [_migration_v1]
+MIGRATIONS: list[Callable[[sqlite3.Connection], None]] = [
+    _migration_v1,
+    _migration_v2,
+    _migration_v3,
+]
 
 SCHEMA_VERSION = len(MIGRATIONS)
 

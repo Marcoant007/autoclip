@@ -133,7 +133,7 @@ capability rather than assuming "GPU means float16".
 
 ## Data model
 
-Six tables (`db/schema.py`), migrated by SQLite's `user_version` pragma. Each
+Eight tables (`db/schema.py`), migrated by SQLite's `user_version` pragma. Each
 migration is append-only: once a user's database is at v3, editing migration 2
 silently diverges their schema from a fresh install's.
 
@@ -145,6 +145,8 @@ silently diverges their schema from a fresh install's.
 | `clips`      | detected clips with boundaries and scores           |
 | `clip_edits` | user caption edits, style, ratio                    |
 | `exports`    | rendered files                                      |
+| `creations`  | original-video briefs, editable storyboards and revisions |
+| `creation_renders` | immutable script/options snapshots and durable production states |
 
 ## Provider abstraction
 
@@ -156,6 +158,47 @@ The retry-with-feedback loop lives in the base class: a schema violation is
 retried once with the validation error appended to the prompt. Small local
 models fail the contract often enough that this converts most failures into
 successes, and it costs nothing when the first response is already valid.
+
+## Original-video planning
+
+`creation.py` defines brief and storyboard contracts. `/api/creations` generates
+and stores these plans in SQLite through `db/creations.py`; it does not enqueue a
+clip job or require a source video. Updates use revision comparison so a stale
+editor cannot overwrite newer work. Reference suggestions remain unverified.
+
+The provider base class also exposes validated structured text generation.
+Ollama receives the requested response schema rather than always receiving the
+clip-candidate schema. Existing highlight prompts and token limits are unchanged.
+
+`production.py` and `pipeline/creation_video.py` turn a saved script revision into
+a vertical MP4. `pipeline/speech.py` synthesizes each scene through Edge TTS,
+requesting word boundaries explicitly. Scene lengths come from probed audio,
+rounded up to whole video frames. Those same lengths offset the final SRT, avoiding
+timing drift across scene joins. Finished speech is cached by text, voice and rate;
+audio, metadata, scene video and final video are committed using staged files.
+
+Uploaded raster images are decoded, normalized to PNG, capped at 20 megapixels,
+and stored under generated immutable identifiers scoped to each creation. No image
+means a locally drawn text card. FFmpeg applies a camera zoom, existing ASS caption
+presets, fades and the existing encoder selection. The final concat normalizes
+audio once. Prompt text is never displayed as finished-video content.
+
+Renders and clips use the same FIFO worker, ordered by creation time. The render
+table snapshots the script and export settings and permits one pending render per
+creation. Polling exposes progress without keeping an HTTP request open for the
+production. On restart, interrupted renders are requeued; retries reuse completed
+scene files. Visual prompts are not sent to an image-generation service.
+
+## Cartoon rendering
+
+The optional 2D stage uses `animation.py` contracts and `pipeline/cartoon.py`
+to draw articulated rigs on every frame. Cast identity is shared across shots;
+normalized acting keys scale to measured speech duration. Mouth motion follows
+decoded audio energy within spoken word boundaries. Frames stream to FFmpeg
+without a disk image sequence. AI direction is validated data, not executed code.
+Writing uses a small separate schema so local models do not receive the rig
+schema until the direction stage. See [CARTOON_2D.md](CARTOON_2D.md) for the public
+API and frontend handoff.
 
 ## Concurrency
 

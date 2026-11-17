@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { formatTimecode, type Word } from '../api'
+import { Icon, Spinner } from './Icon'
 
 /**
  * Word-level caption editing.
@@ -38,22 +39,27 @@ export function CaptionEditor({
 
   if (words.length === 0) {
     return (
-      <p className="text-sm text-ink-500">
-        No transcript for this clip yet.
+      <p className="py-6 text-center text-sm text-ink-500">
+        Ainda não há transcrição para este corte.
       </p>
     )
   }
 
   return (
     <div>
-      <div className="flex items-baseline justify-between border-b border-ink-800 pb-2">
-        <span className="eyebrow">Transcript</span>
-        <span className="numeric text-xs text-ink-600">{words.length} words</span>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="label">Texto da legenda</p>
+          <p className="mt-0.5 text-xs text-ink-500">
+            Clique numa palavra para corrigir. <kbd className="rounded bg-ink-800 px-1">Tab</kbd> vai para a próxima.
+          </p>
+        </div>
+        <span className="numeric chip shrink-0">{words.length} palavras</span>
       </div>
 
       {/* Words flow as text, not as a list of rows — reading it back is the
           main way you notice a mistranscription. */}
-      <div className="mt-4 max-h-[38vh] overflow-y-auto pr-1 text-[0.9375rem] leading-[1.9]">
+      <div className="mt-4 max-h-[40vh] overflow-y-auto rounded-xl bg-ink-900 p-4 text-[0.9375rem] leading-[1.95]">
         {words.map((word, index) =>
           editing === index ? (
             <input
@@ -95,11 +101,12 @@ export function CaptionEditor({
       </div>
 
       <div className="mt-4 flex items-center gap-4">
-        <button onClick={onSave} disabled={!dirty || saving} className="btn btn-ghost">
-          {saving ? 'Saving…' : 'Save edits'}
+        <button onClick={onSave} disabled={!dirty || saving} className="btn btn-primary">
+          {saving ? <Spinner /> : <Icon name="save" size={15} />}
+          {saving ? 'Salvando…' : 'Salvar correções'}
         </button>
-        <span className="text-xs text-ink-500">
-          {dirty ? 'Unsaved changes' : 'Click any word to correct it'}
+        <span className={`text-xs ${dirty ? 'text-signal-warn' : 'text-ink-500'}`}>
+          {dirty ? 'Há correções não salvas' : 'Nenhuma alteração pendente'}
         </span>
       </div>
     </div>

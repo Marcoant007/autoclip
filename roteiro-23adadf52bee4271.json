@@ -1,0 +1,83 @@
+{
+  "id": "23adadf52bee4271",
+  "brief": {
+    "topic": "Explique sobre Aws KMS para oq serve, como surgiu e oq ele resolve",
+    "niche": "technology",
+    "duration_s": 75,
+    "language": "pt-BR",
+    "audience": "Público geral",
+    "visual_style": "illustrated",
+    "reference_notes": "",
+    "instructions": "linguagem simples"
+  },
+  "storyboard": {
+    "title": "O que é AWS KMS",
+    "description": "Neste vídeo, vamos explorar o que é AWS KMS e como ele ajuda a proteger nossas chaves de criptografia.",
+    "scenes": [
+      {
+        "narration": "Imagine que você tem um segredo importante, mas não quer que ninguém mais saiba. Isso é como uma chave de criptografia.",
+        "visual_description": "Ilustração de uma pessoa segurando uma chave com uma nuvem no fundo.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "Mas, como podemos proteger essas chaves de criptografia? Isso é onde entra o AWS KMS.",
+        "visual_description": "Ilustração de uma pessoa usando um computador com uma nuvem no fundo, com uma chave de criptografia sendo criptografada.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "O AWS KMS é um serviço de gerenciamento de chaves de criptografia da Amazon Web Services. Ele ajuda a proteger nossas chaves de criptografia usando criptografia avançada.",
+        "visual_description": "Ilustração de um computador com uma nuvem no fundo, com uma chave de criptografia sendo criptografada usando uma chave de criptografia.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "Mas, como ele funciona? O AWS KMS usa uma tecnologia chamada criptografia de chave pública/privada.",
+        "visual_description": "Ilustração de uma chave pública e uma chave privada sendo usadas para criptografar e descriptografar uma mensagem.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "Isso significa que, apenas a pessoa que tem a chave privada pode descriptografar a mensagem.",
+        "visual_description": "Ilustração de uma pessoa usando uma chave privada para descriptografar uma mensagem.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "E, como isso ajuda a proteger nossas chaves de criptografia? O AWS KMS ajuda a proteger nossas chaves de criptografia criptografando-as usando a chave pública.",
+        "visual_description": "Ilustração de uma chave pública sendo usada para criptografar uma chave de criptografia.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "Isso significa que, mesmo que alguém tenha acesso à nossa chave de criptografia, eles não poderão descriptografá-la sem a chave privada.",
+        "visual_description": "Ilustração de uma pessoa tentando descriptografar uma mensagem, mas não conseguindo.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "E, como isso é útil? O AWS KMS é útil para proteger nossas chaves de criptografia em aplicativos e serviços na nuvem.",
+        "visual_description": "Ilustração de um aplicativo na nuvem sendo protegido por uma chave de criptografia.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "E, como é fácil de usar? O AWS KMS é fácil de usar, pois é integrado com outros serviços da Amazon Web Services.",
+        "visual_description": "Ilustração de um computador com uma nuvem no fundo, com um aplicativo da Amazon Web Services sendo usado.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "E, como podemos começar a usar o AWS KMS? Basta criar uma conta na Amazon Web Services e seguir as instruções para configurar o AWS KMS.",
+        "visual_description": "Ilustração de uma pessoa criando uma conta na Amazon Web Services e configurando o AWS KMS.",
+        "on_screen_text": ""
+      },
+      {
+        "narration": "E, por fim, o que é o AWS KMS? O AWS KMS é um serviço de gerenciamento de chaves de criptografia da Amazon Web Services que ajuda a proteger nossas chaves de criptografia usando criptografia avançada.",
+        "visual_description": "Ilustração de um computador com uma nuvem no fundo, com uma chave de criptografia sendo criptografada usando uma chave de criptografia.",
+        "on_screen_text": ""
+      }
+    ],
+    "references": [],
+    "review_notes": [],
+    "narration_word_count": 246,
+    "estimated_duration_s": 98
+  },
+  "provider": "ollama",
+  "model": "llama3.1:8b",
+  "revision": 1,
+  "created_at": "2026-11-17T20:47:18+00:00",
+  "updated_at": "2026-11-17T20:47:18+00:00"
+}

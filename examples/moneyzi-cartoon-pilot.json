@@ -1,0 +1,87 @@
+{
+  "brief": {
+    "topic": "Uma conversa sobre organizar as contas antes de comprar um carro",
+    "niche": "general",
+    "duration_s": 20,
+    "language": "pt-BR",
+    "audience": "Pessoas que querem organizar a vida financeira",
+    "visual_style": "illustrated",
+    "instructions": "Conversa curta e natural. Personagens originais. Não representa as telas reais do Moneyzi."
+  },
+  "storyboard": {
+    "title": "Será que cabe no meu bolso?",
+    "description": "Uma conversa sobre organizar as contas com o Moneyzi antes de tomar uma decisão.",
+    "cast": [
+      {"id": "rafa", "name": "Rafa", "skin": "#dba37d", "shirt": "#3b9588", "trousers": "#3c5268", "hair": "short", "hair_colour": "#34303b", "voice": "pt-BR-AntonioNeural"},
+      {"id": "lara", "name": "Lara", "skin": "#b97c5d", "shirt": "#ce805f", "trousers": "#52635f", "hair": "curly", "hair_colour": "#3e2b2d", "glasses": true, "voice": "pt-BR-FranciscaNeural"}
+    ],
+    "scenes": [
+      {
+        "narration": "Esse carro é lindo! Eu já me imaginei dirigindo... Mas será que cabe no meu bolso?",
+        "speaker": "Rafa",
+        "visual_description": "Rafa entra caminhando pela calçada, aponta para um carro vermelho e depois leva a mão ao queixo. Lara observa e reage.",
+        "animation": {
+          "setting": "street", "speaker": "rafa", "zoom_start": 1, "zoom_end": 1.06,
+          "props": [{"kind": "car", "x": 0.58, "scale": 1.05}],
+          "actors": [
+            {"actor_id": "rafa", "facing": "right", "keys": [
+              {"at": 0, "x": 0.09, "pose": "rest", "expression": "happy"},
+              {"at": 0.22, "x": 0.29, "pose": "point", "expression": "happy"},
+              {"at": 0.44, "x": 0.29, "pose": "present", "expression": "confident"},
+              {"at": 0.68, "x": 0.29, "pose": "think", "expression": "worried"},
+              {"at": 1, "x": 0.29, "pose": "think", "expression": "worried"}
+            ]},
+            {"actor_id": "lara", "scale": 0.96, "facing": "left", "keys": [
+              {"at": 0, "x": 0.79, "pose": "rest", "expression": "neutral"},
+              {"at": 0.6, "x": 0.76, "pose": "rest", "expression": "surprised"},
+              {"at": 1, "x": 0.76, "pose": "present", "expression": "happy"}
+            ]}
+          ]
+        }
+      },
+      {
+        "narration": "Calma! Antes de decidir, olha suas contas e quanto sobra no fim do mês.",
+        "speaker": "Lara",
+        "visual_description": "Em uma sala com janela, plantas e uma mesa, Lara explica com as mãos. Rafa escuta, pensa e concorda.",
+        "animation": {
+          "setting": "room", "speaker": "lara", "zoom_start": 1.08, "zoom_end": 1.25, "focus_y": 0.68,
+          "actors": [
+            {"actor_id": "rafa", "facing": "right", "keys": [
+              {"at": 0, "x": 0.28, "pose": "rest", "expression": "surprised"},
+              {"at": 0.42, "x": 0.28, "pose": "think", "expression": "worried"},
+              {"at": 1, "x": 0.28, "pose": "rest", "expression": "happy"}
+            ]},
+            {"actor_id": "lara", "scale": 1.03, "facing": "left", "keys": [
+              {"at": 0, "x": 0.73, "pose": "present", "expression": "confident"},
+              {"at": 0.25, "x": 0.73, "pose": "point", "expression": "confident"},
+              {"at": 0.6, "x": 0.73, "pose": "shrug", "expression": "happy"},
+              {"at": 1, "x": 0.73, "pose": "present", "expression": "happy"}
+            ]}
+          ]
+        }
+      },
+      {
+        "narration": "Boa. Vou organizar tudo no Moneyzi. Aí eu decido com mais clareza.",
+        "speaker": "Rafa",
+        "visual_description": "Rafa pega o celular, olha para ele e sorri. Lara concorda. A tela do celular contém apenas um desenho simbólico, sem simular a interface do app.",
+        "animation": {
+          "setting": "room", "speaker": "rafa", "zoom_start": 1.25, "zoom_end": 1.4, "focus_x": 0.5, "focus_y": 0.7,
+          "actors": [
+            {"actor_id": "rafa", "scale": 1.25, "facing": "right", "holding": "phone", "keys": [
+              {"at": 0, "x": 0.46, "pose": "rest", "expression": "neutral"},
+              {"at": 0.28, "x": 0.5, "pose": "present", "expression": "happy"},
+              {"at": 0.65, "x": 0.5, "pose": "think", "expression": "confident"},
+              {"at": 1, "x": 0.5, "pose": "present", "expression": "happy"}
+            ]}
+          ]
+        }
+      }
+    ],
+    "references": [],
+    "review_notes": [
+      "Piloto de atuação 2D por código, com personagens e cenários originais.",
+      "A conversa é fictícia. O vídeo não demonstra as telas reais do Moneyzi.",
+      "A narração usa vozes online já disponíveis no AutoClip."
+    ]
+  }
+}
