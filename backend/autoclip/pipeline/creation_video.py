@@ -9,7 +9,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pysubs2
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont
 
 from .. import paths
 from ..creation import Scene
@@ -17,14 +17,13 @@ from ..db import creation_renders
 from ..jobs.logs import capture_job_logs
 from ..production import DEFAULT_VOICES, CreationRender
 from . import captions, cartoon, export, ffmpeg, speech
+from .scene_media import asset_directory as asset_directory
+from .scene_media import asset_path
+from .scene_media import normalize_image as normalize_image
 from .transcript import Word
 
 log = logging.getLogger(__name__)
 FPS = 30
-
-
-def asset_directory(creation_id: str) -> Path:
-    return paths.root() / "creation-assets" / creation_id
 
 
 def render_directory(render_id: str) -> Path:
@@ -33,22 +32,6 @@ def render_directory(render_id: str) -> Path:
 
 def video_path(render_id: str) -> Path:
     return render_directory(render_id) / "video.mp4"
-
-
-def normalize_image(data: bytes, target: Path) -> None:
-    """Decode only raster formats, remove metadata and cap decoded dimensions."""
-    import io
-    import warnings
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", Image.DecompressionBombWarning)
-        with Image.open(io.BytesIO(data), formats=["JPEG", "PNG", "WEBP"]) as image:
-            if image.width * image.height > 20_000_000:
-                raise ValueError("Use uma imagem de até 20 megapixels.")
-            image = ImageOps.exif_transpose(image).convert("RGB")
-            image.thumbnail((2160, 3840), Image.Resampling.LANCZOS)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            image.save(target, format="PNG")
 
 
 def _wrap(draw: ImageDraw.ImageDraw, text: str, font, width: int, max_lines: int) -> list[str]:
@@ -166,22 +149,36 @@ def render_scene(
     cwd, subtitle_name, fonts_name = ffmpeg.relative_filter_workspace(
         subtitle_path, captions.FONT_DIR
     )
-    direction = "on" if int(output.parent.name.split("-")[-1]) % 2 == 0 else f"{frames}-on"
-    filters = (
-        f"scale={width * 2}:{height * 2}:force_original_aspect_ratio=increase,"
-        f"crop={width * 2}:{height * 2},"
-        f"zoompan=z='1.02+0.06*({direction})/{frames}':"
-        f"x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d={frames}:s={width}x{height}:fps={FPS},"
+    moving = image.suffix == ".mp4"
+    if moving:
+        visual_filters = (
+            f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},fps={FPS},"
+        )
+    else:
+        direction = "on" if int(output.parent.name.split("-")[-1]) % 2 == 0 else f"{frames}-on"
+        visual_filters = (
+            f"scale={width * 2}:{height * 2}:force_original_aspect_ratio=increase,"
+            f"crop={width * 2}:{height * 2},"
+            f"zoompan=z='1.02+0.06*({direction})/{frames}':"
+            f"x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d={frames}:s={width}x{height}:fps={FPS},"
+        )
+    filters = visual_filters + (
         f"setsar=1,format=yuv420p,ass=filename={subtitle_name}:fontsdir={fonts_name},"
         f"fade=t=in:st=0:d=0.15,fade=t=out:st={max(0, duration - 0.15):.4f}:d=0.15"
     )
     temporary = output.with_name("scene.partial.mp4")
     ffmpeg.run(
         [
+            *(["-stream_loop", "-1"] if moving else []),
             "-i",
             str(image.resolve()),
             "-i",
             str(audio.path.resolve()),
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
             "-vf",
             filters,
             "-af",
@@ -199,6 +196,63 @@ def render_scene(
             "192k",
             "-movflags",
             "+faststart",
+            str(temporary.resolve()),
+        ],
+        total_duration_s=duration,
+        on_progress=on_progress,
+        cancelled=cancelled,
+        cwd=cwd,
+    )
+    temporary.replace(output)
+    return duration
+
+
+def render_clip_scene(
+    clip: Path,
+    audio: speech.Speech,
+    output: Path,
+    size: tuple[int, int],
+    style_key: str,
+    settings,
+    cancelled,
+    on_progress,
+) -> float:
+    """An AI-animated clip under the narration: slowed slightly, then played
+    forward and backward (boomerang) until the line ends."""
+    width, height = size
+    duration = math.ceil(audio.duration_s * FPS) / FPS
+    info = ffmpeg.probe(clip)
+    clip_s = max(0.5, info.duration_s)
+    stretch = min(1.35, max(1.0, duration / clip_s))
+    style = replace(captions.get_style(style_key), margin_v_ratio=0.12, size_ratio=0.045)
+    words = [replace(word, text=_safe_ass(word.text)) for word in audio.words]
+    subtitle_path = output.parent / "captions.ass"
+    captions.write_ass(subtitle_path, words, style, width=width, height=height)
+    cwd, subtitle_name, fonts_name = ffmpeg.relative_filter_workspace(
+        subtitle_path, captions.FONT_DIR
+    )
+    loop_frames = max(2, round(clip_s * stretch * FPS) * 2)
+    filters = (
+        f"[0:v]setpts={stretch:.4f}*PTS,fps={FPS},split[f][b];[b]reverse[r];"
+        f"[f][r]concat=n=2:v=1:a=0,loop=loop=-1:size={loop_frames}:start=0,"
+        f"trim=duration={duration:.4f},setpts=PTS-STARTPTS,"
+        f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,"
+        f"crop={width}:{height},setsar=1,format=yuv420p,"
+        f"ass=filename={subtitle_name}:fontsdir={fonts_name},"
+        f"fade=t=in:st=0:d=0.15,fade=t=out:st={max(0, duration - 0.15):.4f}:d=0.15[v]"
+    )
+    temporary = output.with_name("scene.partial.mp4")
+    ffmpeg.run(
+        [
+            "-i", str(clip.resolve()),
+            "-i", str(audio.path.resolve()),
+            "-filter_complex", filters,
+            "-map", "[v]", "-map", "1:a",
+            "-af", "apad",
+            "-t", f"{duration:.6f}",
+            *export.encoder_args(settings),
+            "-c:a", "aac", "-ar", "48000", "-ac", "2", "-b:a", "192k",
+            "-movflags", "+faststart",
             str(temporary.resolve()),
         ],
         total_duration_s=duration,
@@ -271,6 +325,19 @@ class CreationVideoRunner:
         size = (720, 1280) if record.options.resolution == "720p" else (1080, 1920)
         voice = record.options.voice or DEFAULT_VOICES[creation.brief.language]
         scenes = creation.storyboard.scenes
+        art = None
+        if record.options.visual_mode == "ai_local":
+            from ..genai.scenes import prepare_scene_art
+
+            # Artwork first (GPU heavy, cached), then the usual narration loop.
+            art = prepare_scene_art(
+                creation,
+                asset_directory(creation.id),
+                emit=lambda label, value: self.emit(label, 0.75 * value),
+                cancelled=self.cancelled,
+            )
+        span = 0.15 if art is not None else 0.9
+        base = 0.75 if art is not None else 0.0
         all_words: list[Word] = []
         elapsed = 0.0
         segments = []
@@ -279,10 +346,12 @@ class CreationVideoRunner:
                 raise ffmpeg.Cancelled("Produção cancelada.")
             directory = root / f"scene-{index}"
             directory.mkdir(exist_ok=True)
-            self.emit(f"Narração · cena {index + 1} de {len(scenes)}", 0.9 * index / len(scenes))
+            self.emit(f"Narração · cena {index + 1} de {len(scenes)}", base + span * index / len(scenes))
             log.info("Gerando narração da cena %d/%d.", index + 1, len(scenes))
             is_cartoon = record.options.visual_mode == "cartoon" or (
-                record.options.visual_mode == "auto" and scene.animation is not None
+                record.options.visual_mode == "auto"
+                and scene.animation is not None
+                and not scene.image_id
             )
             scene_voice = voice
             if is_cartoon and scene.animation and scene.animation.speaker:
@@ -296,34 +365,60 @@ class CreationVideoRunner:
                 scene.narration, scene_voice, record.options.rate_percent, directory, self.cancelled
             )
             image = directory / "visual.png"
-            if is_cartoon:
+            if art is not None:
+                if not image.exists():
+                    image.write_bytes(art[index].image.read_bytes())
+            elif is_cartoon:
                 pass  # The puppet renderer creates its own scene and poster.
             elif scene.image_id and record.options.visual_mode != "cards":
-                source_image = asset_directory(creation.id) / f"{scene.image_id}.png"
+                source_image = asset_path(creation.id, scene.image_id)
                 if not source_image.exists():
                     raise RuntimeError(
-                        f"A imagem da cena {index + 1} não foi encontrada. "
+                        f"A mídia da cena {index + 1} não foi encontrada. "
                         "Envie-a novamente e crie outro vídeo."
                     )
+                if source_image.suffix == ".mp4":
+                    image = directory / "visual.mp4"
+                    poster = source_image.with_suffix(".poster.png")
+                    if poster.is_file() and not (directory / "visual.png").exists():
+                        (directory / "visual.png").write_bytes(poster.read_bytes())
                 if not image.exists():
                     image.write_bytes(source_image.read_bytes())
             elif not image.exists():
                 create_card(scene, creation.storyboard.title, index, len(scenes), image, size)
             segment = directory / "scene.mp4"
             duration = math.ceil(audio.duration_s * FPS) / FPS
-            stage = "Animando personagens" if is_cartoon else "Compondo imagens e cartelas"
+            stage = (
+                "Montando cena animada"
+                if art is not None
+                else "Animando personagens"
+                if is_cartoon
+                else "Compondo cenas"
+            )
             self.emit(
-                f"{stage} · cena {index + 1} de {len(scenes)}", 0.9 * (index + 0.2) / len(scenes)
+                f"{stage} · cena {index + 1} de {len(scenes)}",
+                base + span * (index + 0.2) / len(scenes),
             )
             if not segment.exists():
 
                 def progress(value, i=index, label=stage):
                     self.emit(
                         f"{label} · cena {i + 1} de {len(scenes)}",
-                        0.9 * (i + 0.2 + 0.8 * value) / len(scenes),
+                        base + span * (i + 0.2 + 0.8 * value) / len(scenes),
                     )
 
-                if is_cartoon:
+                if art is not None and art[index].clip is not None:
+                    duration = render_clip_scene(
+                        art[index].clip,
+                        audio,
+                        segment,
+                        size,
+                        record.options.caption_style,
+                        record.export_settings,
+                        self.cancelled,
+                        progress,
+                    )
+                elif is_cartoon:
                     duration = render_cartoon_scene(
                         scene,
                         creation.storyboard.cast,
@@ -346,7 +441,7 @@ class CreationVideoRunner:
                         record.export_settings,
                         self.cancelled,
                         progress,
-                        image_overlay=bool(scene.image_id),
+                        image_overlay=bool(scene.image_id) and art is None,
                     )
             segments.append(segment)
             all_words.extend(

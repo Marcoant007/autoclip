@@ -12,6 +12,7 @@ from .creation import Creation
 VOICES = {
     "pt-BR-AntonioNeural": ("pt-BR", "Antônio · português"),
     "pt-BR-FranciscaNeural": ("pt-BR", "Francisca · português"),
+    "pt-BR-ThalitaMultilingualNeural": ("pt-BR", "Thalita · português brasileiro"),
     "en-US-GuyNeural": ("en", "Guy · inglês"),
     "en-US-JennyNeural": ("en", "Jenny · inglês"),
     "es-ES-AlvaroNeural": ("es", "Álvaro · espanhol"),
@@ -26,7 +27,7 @@ RenderStatus = Literal["queued", "running", "done", "failed", "cancelled"]
 
 
 class RenderOptions(BaseModel):
-    visual_mode: Literal["auto", "cartoon", "images", "cards"] = "auto"
+    visual_mode: Literal["auto", "cartoon", "images", "cards", "ai_local"] = "auto"
     voice: str | None = Field(default=None, max_length=100)
     rate_percent: int = Field(default=0, ge=-30, le=30)
     resolution: Literal["720p", "1080p"] = "720p"

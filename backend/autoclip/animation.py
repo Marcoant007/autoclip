@@ -16,6 +16,7 @@ Colour = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 Voice = Literal[
     "pt-BR-AntonioNeural",
     "pt-BR-FranciscaNeural",
+    "pt-BR-ThalitaMultilingualNeural",
     "en-US-GuyNeural",
     "en-US-JennyNeural",
     "es-ES-AlvaroNeural",

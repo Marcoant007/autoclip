@@ -11,6 +11,13 @@ being validated against a fixed golden video set — see
 
 ### Added
 
+- Animated WebP uploads now read frame timing when the video probe reports zero
+  container duration, preserving valid animation instead of rejecting the file.
+- Scene upload failures now preserve conversion diagnostics in server logs and
+  distinguish unsupported files, size limits, conversion errors and server failures.
+- Scene uploads now accept animated GIFs and MP4 clips, with moving previews,
+  silent normalized video, automatic looping/trimming to narration, and captions.
+  Added the Thalita Brazilian Portuguese voice to narration and character choices.
 - **2D cartoon renderer** — per-frame character rigs with walking, gestures,
   expressions, blinking and speech-driven mouths; original street, room and
   courtyard sets; cast voices; validated AI direction that preserves spoken text;

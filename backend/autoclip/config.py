@@ -94,6 +94,17 @@ class ExportSettings(BaseModel):
     write_srt: bool = False
 
 
+class LocalAISettings(BaseModel):
+    """Local image and video generation on this computer's GPU."""
+
+    #: Folder for downloaded model weights. Empty = <AutoClip home>/models/genai.
+    models_dir: str = ""
+    #: "fast" trades detail for time on 8 GB GPUs; "quality" uses more steps/frames.
+    quality: Literal["fast", "quality"] = "fast"
+    #: Animate the illustrations with Wan 2.2; otherwise use camera motion only.
+    animate: bool = True
+
+
 class Settings(BaseModel):
     """Top-level persisted settings."""
 
@@ -110,6 +121,7 @@ class Settings(BaseModel):
     clips: ClipSettings = Field(default_factory=ClipSettings)
     ingest: IngestSettings = Field(default_factory=IngestSettings)
     export: ExportSettings = Field(default_factory=ExportSettings)
+    local_ai: LocalAISettings = Field(default_factory=LocalAISettings)
 
     #: Set when secrets had to be written to config.json because no keyring
     #: backend was usable. Surfaced as a warning in the UI and in `doctor`.

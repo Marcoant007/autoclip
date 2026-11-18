@@ -37,16 +37,22 @@ class SceneText(BaseModel):
     visual_description: LongText
     on_screen_text: str = Field(default="", max_length=200)
     speaker: str | None = Field(default=None, min_length=1, max_length=60)
+    #: English prompt for the local illustration model (subject, setting, light).
+    image_prompt: str = Field(default="", max_length=1200)
 
 
 class Scene(SceneText):
     image_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{16}$")
+    media_type: Literal["image", "video"] = "image"
     animation: ShotPlan | None = None
 
 
 class WritingDraft(BaseModel):
     title: ShortText
     description: LongText
+    #: English, shared by every illustration: recurring characters' fixed looks,
+    #: palette and setting, so the local image model keeps them consistent.
+    art_direction: str = Field(default="", max_length=1500)
     scenes: list[SceneText] = Field(min_length=3, max_length=12)
     references: list[Note] = Field(default_factory=list, max_length=20)
     review_notes: list[Note] = Field(default_factory=list, max_length=20)
@@ -118,6 +124,11 @@ async def generate_storyboard(brief: CreationBrief, provider: LLMProvider) -> St
         "split across 3 to 12 scenes. Start with a strong opening, develop one clear "
         "idea, and finish with a natural conclusion. The first scene contains the hook; "
         "do not duplicate it in another field. Narration must contain only spoken words.\n"
+        "Also write, IN ENGLISH regardless of the brief language: art_direction (one "
+        "paragraph fixing each recurring character's age, skin tone, hair, clothes and the "
+        "palette/setting, reused for every image) and, for every scene, image_prompt (one "
+        "concrete sentence for an illustration model: who is in frame doing what, "
+        "expression, setting, lighting, camera framing; vertical 9:16; no text or logos).\n"
         "Return ONLY a JSON object matching this schema:\n"
         f"{json.dumps(WritingDraft.model_json_schema(), ensure_ascii=False)}"
     )

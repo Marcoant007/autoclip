@@ -200,6 +200,7 @@ export interface StoryboardScene {
   visual_description: string
   on_screen_text: string
   image_id?: string | null
+  media_type?: 'image' | 'video'
 }
 
 export interface Storyboard {
@@ -333,7 +334,7 @@ export const api = {
   uploadCreationImage: (id: string, file: File) => {
     const form = new FormData()
     form.append('file', file)
-    return request<{image_id: string}>(`/api/creations/${id}/images`, {method: 'POST', body: form})
+    return request<{image_id: string; media_type: 'image' | 'video'}>(`/api/creations/${id}/images`, {method: 'POST', body: form})
   },
   creationImageUrl: (id: string, imageId: string) => `/api/creations/${id}/images/${imageId}`,
   createRender: (id: string, revision: number, options: RenderOptions) =>

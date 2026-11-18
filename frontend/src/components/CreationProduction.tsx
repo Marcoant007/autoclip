@@ -212,7 +212,7 @@ export function CreationProduction({ creation, disabled }: { creation: Creation;
         {disabled && !pending && (
           <p className="flex items-start gap-1.5 text-xs leading-relaxed text-signal-warn">
             <Icon name="info" size={13} className="mt-0.5" />
-            Salve as alterações do roteiro (e aguarde os envios de imagem) antes de gerar o vídeo.
+            Salve as alterações do roteiro (e aguarde os envios de mídia) antes de gerar o vídeo.
           </p>
         )}
 

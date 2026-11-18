@@ -113,3 +113,34 @@ snapshots, FIFO queue, cancel/retry, preview/poster and MP4/SRT endpoints.
 
 This is a finite 2D engine. Custom scenery, 3D characters, contact physics and
 phoneme-level lip sync require additional renderers or rig/set extensions.
+
+## Skia dialogue engine (pilot)
+
+`backend/autoclip/toon/` is a second, higher-fidelity renderer built for
+character acting. It is not yet wired into the creation UI or the
+`POST /renders` flow; the pilot runs from a script.
+
+```powershell
+.venv\Scripts\python.exe -m pip install -e ".[toon]"   # adds skia-python
+.venv\Scripts\python.exe examples/render_toon_pilot.py              # MP4 + stills
+.venv\Scripts\python.exe examples/render_toon_pilot.py --stills     # stills only
+```
+
+Output: `.autoclip/toon-pilot/rafa-lara-pilot.mp4` plus `.srt`, `.json`, preview
+PNGs and `.sheet.png`. Narration uses the existing Edge TTS helper (online,
+no key); drawing, lip sync and encoding are local.
+
+| Module | Role |
+| --- | --- |
+| `draw.py` | Skia paints, Bézier/Catmull-Rom paths, path booleans, cel shading (form shadow + rim light). |
+| `character.py` | Articulated rig: hips, torso lean, shrug, 2.5D head turn (cranium + rotating face mask), eyes with lids/iris/highlights, brows, visemic mouth, two-bone IK arms with continuous elbow swing, hand shapes (`relax`, `open`, `point`, `chin`, `phone`, `pocket`), curly hair with secondary motion. |
+| `street.py` | Golden-hour street set in parallax layers; swaying tree and bougainvillea, moving leaf light, dust, falling leaves, car reflection. |
+| `acting.py` | Keyframed channels with easing; cues anchored to spoken words (`"r2:bolso"`, `"l1.end+0.3"`, `"r1@0.5"`); breathing, idle drift, blinks, saccades, speech-driven head emphasis; viseme lip sync scaled by the real audio energy. |
+| `scene.py` | Per-line TTS, timeline from measured durations, audio mix, ASS/SRT captions (existing presets), multiprocess rendering piped to FFmpeg with the configured encoder and loudness filter. |
+
+The shot is described in `examples/toon-pilot/pilot.json`: cast looks and
+voices, dialogue lines with gaps, camera keys, and per-character `base` pose,
+named `presets` and `keys` (`at`, `dur`, `ease`, `use`, `set`, `blink`).
+Specific to the pilot: the single street set, the two looks (hair styles
+`short_curls`/`big_curls`, outfits `overshirt`/`tee`) and the hand-written
+choreography.

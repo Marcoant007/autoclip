@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Query, UploadFile
@@ -24,11 +25,19 @@ from ..db.models import new_id
 from ..jobs.logs import read_logs
 from ..jobs.queue import queue
 from ..pipeline import export
-from ..pipeline.creation_video import asset_directory, normalize_image, render_directory, video_path
+from ..pipeline.creation_video import render_directory, video_path
+from ..pipeline.scene_media import (
+    MAX_UPLOAD_BYTES,
+    SceneMediaError,
+    asset_directory,
+    asset_path,
+    save_visual,
+)
 from ..production import DEFAULT_VOICES, VOICES, CreationRender, RenderCreateIn
 from ..providers import ProviderError
 
 router = APIRouter(prefix="/api/creations", tags=["creations"])
+log = logging.getLogger(__name__)
 AssetId = Annotated[str, Path(pattern=r"^[a-f0-9]{16}$")]
 
 
@@ -59,6 +68,7 @@ async def import_creation(payload: CreationImportIn) -> Creation:
     # inherit references to another creation's local files.
     for scene in payload.storyboard.scenes:
         scene.image_id = None
+        scene.media_type = "image"
     return await asyncio.to_thread(
         creations.create, payload.brief, payload.storyboard, "imported", ""
     )
@@ -136,30 +146,49 @@ async def list_voices(creation_id: str) -> list[dict]:
 async def upload_image(creation_id: str, file: UploadFile) -> dict:
     await _get(creation_id)
     try:
-        data = await file.read(15 * 1024 * 1024 + 1)
+        data = await file.read(MAX_UPLOAD_BYTES + 1)
     finally:
         await file.close()
-    if len(data) > 15 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Use uma imagem de até 15 MB.")
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Use um arquivo de até 50 MB.")
     image_id = new_id()
-    target = asset_directory(creation_id) / f"{image_id}.png"
+    target = asset_directory(creation_id) / image_id
     try:
-        await asyncio.to_thread(normalize_image, data, target)
+        media_type = await asyncio.to_thread(save_visual, data, target)
     except Exception as exc:
-        target.unlink(missing_ok=True)
+        log.exception(
+            "Falha no upload de mídia: creation=%s asset=%s bytes=%d mime=%s",
+            creation_id,
+            image_id,
+            len(data),
+            file.content_type,
+        )
+        for suffix in (".png", ".mp4", ".poster.png"):
+            target.with_suffix(suffix).unlink(missing_ok=True)
+        if isinstance(exc, SceneMediaError):
+            raise HTTPException(
+                status_code=exc.status_code,
+                detail={"message": str(exc), "hint": exc.hint},
+            ) from exc
         raise HTTPException(
-            status_code=415, detail="Imagem inválida. Use PNG, JPG ou WebP de até 20 megapixels."
+            status_code=500,
+            detail={
+                "message": "Ocorreu uma falha interna ao processar a mídia.",
+                "hint": "O terminal do AutoClip contém a causa detalhada do erro.",
+            },
         ) from exc
-    return {"image_id": image_id}
+    return {"image_id": image_id, "media_type": media_type}
 
 
 @router.get("/{creation_id}/images/{image_id}")
-async def get_image(creation_id: str, image_id: AssetId) -> FileResponse:
+async def get_image(creation_id: str, image_id: AssetId, poster: bool = False) -> FileResponse:
     await _get(creation_id)
-    target = asset_directory(creation_id) / f"{image_id}.png"
+    target = asset_path(creation_id, image_id)
+    if poster and target.suffix == ".mp4":
+        target = target.with_suffix(".poster.png")
     if not target.is_file():
-        raise HTTPException(status_code=404, detail="Imagem não encontrada.")
-    return FileResponse(target, media_type="image/png")
+        raise HTTPException(status_code=404, detail="Mídia não encontrada.")
+    return FileResponse(target, media_type="video/mp4" if target.suffix == ".mp4" else "image/png")
 
 
 @router.post("/{creation_id}/renders", response_model=CreationRender, status_code=201)
@@ -186,7 +215,8 @@ async def create_render(creation_id: str, payload: RenderCreateIn) -> CreationRe
         scene.image_id for scene in creation.storyboard.scenes
     ):
         raise HTTPException(
-            status_code=400, detail="Envie uma imagem para cada cena antes de usar este modo."
+            status_code=400,
+            detail="Envie uma imagem, GIF ou MP4 para cada cena antes de usar este modo.",
         )
     if any(
         actor.voice and VOICES[actor.voice][0] != creation.brief.language
@@ -196,13 +226,10 @@ async def create_render(creation_id: str, payload: RenderCreateIn) -> CreationRe
             status_code=400, detail="As vozes dos personagens precisam usar o idioma do roteiro."
         )
     for index, scene in enumerate(creation.storyboard.scenes):
-        if (
-            scene.image_id
-            and not (asset_directory(creation_id) / f"{scene.image_id}.png").is_file()
-        ):
+        if scene.image_id and not asset_path(creation_id, scene.image_id).is_file():
             raise HTTPException(
                 status_code=400,
-                detail=f"Envie novamente a imagem da cena {index + 1} e salve o roteiro.",
+                detail=f"Envie novamente a mídia da cena {index + 1} e salve o roteiro.",
             )
     try:
         render = await asyncio.to_thread(

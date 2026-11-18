@@ -575,7 +575,7 @@ export function CreationReview() {
     setError(null)
     try {
       const result = await api.uploadCreationImage(creation.id, file)
-      patchScene(index, { image_id: result.image_id })
+      patchScene(index, { image_id: result.image_id, media_type: result.media_type })
     } catch (err) {
       setError(err as Error)
     } finally {
@@ -691,11 +691,11 @@ export function CreationReview() {
             <div>
               <h2 className="text-base font-semibold text-ink-100">Cenas</h2>
               <p className="text-xs text-ink-500">
-                Cada cena tem uma fala, uma imagem (ou cartela animada) e um texto opcional na tela.
+                Cada cena tem uma fala, uma imagem, GIF ou MP4 e um texto opcional na tela.
               </p>
             </div>
             <span className="chip numeric">
-              <Icon name="image" size={12} /> {imagesCount}/{storyboard.scenes.length} com imagem
+              <Icon name="image" size={12} /> {imagesCount}/{storyboard.scenes.length} com mídia
             </span>
           </div>
 
@@ -979,9 +979,10 @@ function SceneCard({
           index={index}
           creationId={creationId}
           imageId={scene.image_id ?? null}
+          mediaType={scene.media_type ?? 'image'}
           uploading={uploading}
           onUpload={onUpload}
-          onClear={() => onChange({ image_id: null })}
+          onClear={() => onChange({ image_id: null, media_type: 'image' })}
           overlay={scene.on_screen_text}
         />
 
@@ -1040,6 +1041,7 @@ function ImageSlot({
   index,
   creationId,
   imageId,
+  mediaType,
   uploading,
   onUpload,
   onClear,
@@ -1048,6 +1050,7 @@ function ImageSlot({
   index: number
   creationId: string
   imageId: string | null
+  mediaType: 'image' | 'video'
   uploading: boolean
   onUpload: (file: File) => void
   onClear: () => void
@@ -1077,11 +1080,25 @@ function ImageSlot({
       >
         {imageId ? (
           <>
-            <img
-              src={api.creationImageUrl(creationId, imageId)}
-              alt={`Imagem da cena ${index + 1}`}
-              className="size-full object-cover"
-            />
+            {mediaType === 'video' ? (
+              <video
+                key={imageId}
+                src={api.creationImageUrl(creationId, imageId)}
+                poster={`${api.creationImageUrl(creationId, imageId)}?poster=true`}
+                aria-label={`Animação da cena ${index + 1}`}
+                className="size-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+              />
+            ) : (
+              <img
+                src={api.creationImageUrl(creationId, imageId)}
+                alt={`Imagem da cena ${index + 1}`}
+                className="size-full object-cover"
+              />
+            )}
             {overlay && (
               <span className="absolute inset-x-2 top-1/3 text-center text-[10px] font-bold uppercase leading-tight text-white [text-shadow:0_1px_4px_#000]">
                 {overlay}
@@ -1107,7 +1124,7 @@ function ImageSlot({
             <span className="grid size-9 place-items-center rounded-lg bg-ink-800 text-ink-300 group-hover:text-accent-400">
               <Icon name="image" size={17} />
             </span>
-            <span className="text-xs font-semibold text-ink-200">Adicionar imagem</span>
+            <span className="text-xs font-semibold text-ink-200">Adicionar mídia</span>
             <span className="text-[10px] leading-snug text-ink-500">ou fica uma cartela animada</span>
           </label>
         )}
@@ -1123,7 +1140,7 @@ function ImageSlot({
       <input
         id={inputId}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,.gif,.mp4"
         className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0]
@@ -1131,7 +1148,10 @@ function ImageSlot({
           event.target.value = ''
         }}
       />
-      <p className="mt-2 text-center text-[10px] text-ink-600">PNG, JPG ou WebP · até 15 MB</p>
+      <p className="mt-2 text-center text-[10px] text-ink-600">
+        Imagens estáticas · até 15 MB<br />GIF, WebP animado e MP4 · até 50 MB / 3 min<br />
+        Vídeos repetem até o fim da fala, sem áudio original.
+      </p>
     </div>
   )
 }
